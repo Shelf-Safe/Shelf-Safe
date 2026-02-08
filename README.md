@@ -5,5 +5,3 @@ testing branch poc-amritpal
 scrum test
 dalbir test
 completed test
-Dalbir completed the git recording Task and merge and pull also done
-thank you
