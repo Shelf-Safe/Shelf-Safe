@@ -9,4 +9,5 @@ hi everyone.... ....
 Dalbir has completed his test recording
 Anmol: workflow of development -- dummy testing
 
-test101;
+boolean isJavaFun = true;
+boolean isFishTasty = false;
