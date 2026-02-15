@@ -27,23 +27,22 @@ app.get("/", async (req, res) => {
   await getDb();
   res.json({ ok: true, message: "API connected" });
 });
-app.get("/api/health", async (req, res) => {
+
+app.get("/health", async (req, res) => {
   await getDb();
   res.json({ ok: true, message: "API is healthy + DB connected" });
 });
 
-app.get("/api/products", async (req, res) => {
+app.get("/products", async (req, res) => {
   const database = await getDb();
   const products = await database.collection("products").find({}).toArray();
   res.json(products);
 });
 
-app.get("/api/inventoryLots", async (req, res) => {
+app.get("/inventoryLots", async (req, res) => {
   const database = await getDb();
   const lots = await database.collection("inventoryLots").find({}).toArray();
   res.json(lots);
 });
 
-export default function handler(req, res) {
-  return app(req, res);
-}
+export default app;
