@@ -45,4 +45,25 @@ app.get("/inventoryLots", async (req, res) => {
   res.json(lots);
 });
 
+app.get("/attachments", async (req, res) => {
+  const database = await getDb();
+  const { entityType, entityId } = req.query;
+
+  const filter = { isDeleted: false };
+
+  if (entityType) filter.entityType = entityType;
+
+  if (entityId) {
+    filter.entityId = entityId; 
+  }
+
+  const attachments = await database
+    .collection("attachments")
+    .find(filter)
+    .toArray();
+
+  res.json(attachments);
+});
+
+
 export default app;
