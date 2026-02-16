@@ -16,7 +16,7 @@ function App() {
       setError("");
       setStatus("Loading...");
 
-      const healthRes = await fetch("/api/health");
+      const healthRes = await fetch("/health");
       if (!healthRes.ok) throw new Error("Health check failed. Is backend running?");
       await healthRes.json();
 
