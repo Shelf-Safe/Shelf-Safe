@@ -1409,3 +1409,4 @@ backend/server-local.js
 backend/server.js
 frontend/src/App-v2.jsx
 frontend/src/App-v1.jsx
+backend/.DS_Store
