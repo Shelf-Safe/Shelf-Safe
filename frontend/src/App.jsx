@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
@@ -6,7 +7,7 @@ import "./App.css";
 function App() {
   const [status, setStatus] = useState("Idle");
   const [products, setProducts] = useState([]);
-  const [lots, setLots] = useState([]); // used only for mapping (not shown)
+  const [lots, setLots] = useState([]); 
   const [attachments, setAttachments] = useState([]);
   const [error, setError] = useState("");
 
@@ -19,7 +20,7 @@ function App() {
       if (!healthRes.ok) throw new Error("Health check failed. Is backend running?");
       await healthRes.json();
 
-      // We still fetch lots to map product -> lot -> attachment
+
       const [productsRes, lotsRes, attachmentsRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/inventoryLots"),
@@ -51,25 +52,19 @@ function App() {
     fetchShelfSafeData();
   }, []);
 
-  /**
-   * Build maps:
-   * 1) lotId -> imageUrl  (from attachments)
-   * 2) productId -> imageUrl (using lots to connect productId -> lotId)
-   */
+
   const productImageById = useMemo(() => {
-    // lotId -> url
+   
     const lotImageMap = new Map();
     for (const a of attachments) {
       if (!a?.url) continue;
 
-      // entityId might come as object or string; normalize:
       const lotId = String(a.entityId?.$oid ?? a.entityId);
       if (!lotId || lotId === "undefined") continue;
 
       if (!lotImageMap.has(lotId)) lotImageMap.set(lotId, a.url);
     }
 
-    // productId -> url (take first matching lot image)
     const productMap = new Map();
 
     for (const lot of lots) {
@@ -81,7 +76,6 @@ function App() {
       const imgUrl = lotImageMap.get(lotId);
       if (!imgUrl) continue;
 
-      // keep first image per product
       if (!productMap.has(productId)) productMap.set(productId, imgUrl);
     }
 
