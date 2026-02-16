@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://shelf-safe.vercel.app/api/:path*"
+      "destination": "https://shelf-safe.vercel.app/api/api/$1"
     }
   ]
 }
