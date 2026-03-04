@@ -23,31 +23,37 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a password'],
       minlength: [6, 'Password must be at least 6 characters'],
-      select: false,
+      select: false, // Don't return password by default
     },
     role: {
       type: String,
       enum: ['USER', 'ADMIN'],
       default: 'USER',
     },
+    // Extended profile fields
     employeeId: { type: String, default: '' },
     userRole: { type: String, default: '' },
     pharmacyOrganization: { type: String, default: '' },
     phone: { type: String, default: '' },
     avatarUrl: { type: String, default: '' },
+    // Notification preferences
     notifications: {
       phoneEnabled: { type: Boolean, default: false },
       phoneNumber: { type: String, default: '' },
       emailEnabled: { type: Boolean, default: true },
       emailAddress: { type: String, default: '' },
     },
+    // Organisation (used to scope inventory data)
     orgId: {
       type: String,
       default: 'dummy01',
     },
+    // Security
     twoFactorEnabled: { type: Boolean, default: false },
+    // Password reset
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
+    // Activity log (last 20 entries)
     recentActivity: {
       type: [{ action: String, timestamp: Date }],
       default: [],
@@ -66,7 +72,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Hash password before saving
 userSchema.pre('save', async function (next) {
+  // Only hash if password is new or modified
   if (!this.isModified('password')) {
     next();
   }
@@ -75,6 +83,7 @@ userSchema.pre('save', async function (next) {
   this.password = await bcryptjs.hash(this.password, salt);
 });
 
+// Method to compare passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcryptjs.compare(enteredPassword, this.password);
 };

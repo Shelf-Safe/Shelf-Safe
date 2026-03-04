@@ -6,10 +6,11 @@ import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Multer: memory storage for bulk import (Excel) and photo uploads
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/vnd.ms-excel',
@@ -27,18 +28,21 @@ const upload = multer({
   },
 });
 
+// ─── Helper ──────────────────────────────────────────────────────────────────
 function buildExpiryDate(month, year) {
   if (!month || !year) return null;
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const monthIndex = isNaN(month) ? months.indexOf(month) : parseInt(month, 10) - 1;
   if (monthIndex < 0) return null;
-  return new Date(parseInt(year, 10), monthIndex + 1, 0);
+  return new Date(parseInt(year, 10), monthIndex + 1, 0); // last day of month
 }
 
+// ─── GET /api/medications ─────────────────────────────────────────────────────
 router.get('/', verifyToken, async (req, res) => {
   try {
     const { search = '', status = '', page = 1, limit = 20 } = req.query;
 
+    // Scope by orgId when available; fall back to addedBy so existing personal records still work
     const scopeFilter = req.user.orgId
       ? { orgId: req.user.orgId }
       : { addedBy: req.user.userId };
@@ -76,6 +80,7 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// ─── POST /api/medications ────────────────────────────────────────────────────
 router.post('/', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     const {
@@ -119,6 +124,7 @@ router.post('/', verifyToken, upload.single('photo'), async (req, res) => {
   }
 });
 
+// ─── GET /api/medications/:id ─────────────────────────────────────────────────
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
@@ -132,6 +138,7 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// ─── PUT /api/medications/:id ─────────────────────────────────────────────────
 router.put('/:id', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
@@ -166,6 +173,7 @@ router.put('/:id', verifyToken, upload.single('photo'), async (req, res) => {
   }
 });
 
+// ─── DELETE /api/medications/:id ──────────────────────────────────────────────
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
@@ -179,6 +187,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// ─── POST /api/medications/bulk-import ───────────────────────────────────────
 router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -224,8 +233,11 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
         category: String(row['Category'] || row['category'] || '').trim(),
         addedBy: req.user.userId,
       orgId: req.user.orgId || 'dummy01',
-    };
-  });
+    }; // This closes the return object
+  }); // This closes the rows.map function
+
+  // You'll likely need to save these medications to your DB here
+  // e.g., await Medication.insertMany(medications);
 
   res.status(200).json({ success: true, count: medications.length });
 
@@ -234,18 +246,23 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
  }
 });
 
+// ─── POST /api/medications/barcode ───────────────────────────────────────────
+// Accepts a photo upload; returns parsed barcode data (mock lookup)
 router.post('/barcode', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No photo uploaded' });
     }
 
+    // In production this would call an external barcode/NDC lookup API.
+    // For now we return the raw image as a data URL so the frontend can preview it.
     const imageDataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
     res.json({
       success: true,
       data: {
         imageDataUrl,
+        // Placeholder parsed fields – replace with real OCR/barcode library output:
         barcodeData: req.body.barcodeData || '',
         medicationName: '',
         brandName: '',

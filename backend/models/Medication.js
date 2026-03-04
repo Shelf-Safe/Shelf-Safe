@@ -81,6 +81,7 @@ const medicationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    // Organisation scope — allows shared inventory across a pharmacy org
     orgId: {
       type: String,
       default: '',
@@ -92,6 +93,7 @@ const medicationSchema = new mongoose.Schema(
   }
 );
 
+// Auto-compute status before saving
 medicationSchema.pre('save', function (next) {
   const today = new Date();
   const thirtyDaysOut = new Date();
