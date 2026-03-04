@@ -1,4 +1,12 @@
+/*
+  this is to Seed dummy medications into MongoDB.
 
+  Usage:
+    node scripts/seedMedications.js
+
+  Requires:
+    - MONGO_URI in backend/.env (same as server)
+*/
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
