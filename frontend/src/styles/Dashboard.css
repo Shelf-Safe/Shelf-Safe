@@ -415,3 +415,106 @@
         align-items: flex-start
     }
 }
+
+/* ---- Profile-only additions (appended) ---- */
+
+.dashboard-section {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px
+}
+
+.dashboard-section h2,
+.dashboard-section h3 {
+    margin: 0 0 6px 0
+}
+
+.profile-page-title {
+    margin: 0 0 8px 0
+}
+
+.profile-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px
+}
+
+.profile-tab {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    cursor: pointer
+}
+
+.profile-tab.active {
+    font-weight: bold
+}
+
+.profile-content {
+    margin-bottom: 8px
+}
+
+.profile-view,
+.profile-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px
+}
+
+.profile-field,
+.notification-setting {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee
+}
+
+.profile-field label,
+.profile-edit .form-group label {
+    display: block;
+    margin-bottom: 2px
+}
+
+.profile-edit .form-group input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #ccc
+}
+
+.profile-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px
+}
+
+.security-item,
+.billing-info {
+    padding: 8px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #eee
+}
+
+.profile-danger-zone {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #ccc
+}
+
+.btn-secondary {
+    background: #fff;
+    color: #111;
+    border-color: #999
+}
+
+.btn-secondary:hover {
+    background: #f3f4f6
+}
+
+.btn-danger {
+    background: #dc2626;
+    color: #fff;
+    border-color: #dc2626
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c
+}
