@@ -1,30 +1,30 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardLayout = ({ children }) => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-
+  const { user } = useAuth();
   const displayName = user?.name || user?.fullName || user?.email || 'User';
+  const profileImageUrl = user?.profileImageUrl || user?.avatarUrl || user?.photoURL;
   const initial = (displayName?.trim()?.[0] || 'U').toUpperCase();
-
-  const goProfile = () => navigate('/profile');
 
   return (
     <div className="dashboard-layout">
       <Sidebar />
       <div className="dashboard-layout-main">
         <header className="dashboard-layout-header">
-          <div />
-          <div className="header-right">
-            <button type="button" className="header-user" onClick={goProfile} aria-label="Open profile">
-              <span className="header-avatar" aria-hidden="true">{initial}</span>
-              <span className="header-username">{displayName}</span>
-            </button>
-            <button type="button" className="btn btn-outline" onClick={logout}>Logout</button>
-          </div>
+          <div className="header-left" />
+          <Link to="/profile" className="header-user-link">
+            <span className="header-user-avatar" aria-hidden="true">
+              {profileImageUrl ? (
+                <img src={profileImageUrl} alt="" className="header-user-avatar-img" />
+              ) : (
+                <span className="header-user-avatar-initial">{initial}</span>
+              )}
+            </span>
+            <span>{displayName}</span>
+          </Link>
         </header>
         <main className="dashboard-layout-content">
           {children}
