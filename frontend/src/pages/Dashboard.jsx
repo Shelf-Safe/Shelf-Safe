@@ -28,7 +28,22 @@ export const Dashboard = () => {
   return (
     <DashboardLayout>
       <div className="dash">
-        <h1 className="dash-title">Dashboard</h1>
+        <div className="dash-header">
+          <h1 className="dash-title">Dashboard</h1>
+          <div className="dash-header-actions">
+            <div className="dash-header-buttons">
+              <Link to="/inventory/add" className="btn btn-outline">Add Medication</Link>
+              <button type="button" className="btn btn-primary">Sync Inventory</button>
+            </div>
+            <div className="dash-header-sync">
+              <span className="dash-header-sync-label">Last Sync</span>
+              <span className="dash-header-sync-time">29 Jan 2026 - 8:45 am</span>
+            </div>
+            <select className="dash-header-date" aria-label="Date range">
+              <option>Today</option>
+            </select>
+          </div>
+        </div>
 
         <div className="dash-cards">
           <div className="dash-card">
