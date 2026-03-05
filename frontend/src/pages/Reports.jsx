@@ -1,16 +1,15 @@
 import React from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { Reports as ReportsContent } from '../components/Reports';
+import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
 
 export const Reports = () => {
   return (
     <DashboardLayout>
-      <div className="empty-surface">
-        <p className="empty-text">Build your <strong>Reports</strong> UI here</p>
+      <div className="reports-page">
+        <h1 className="reports-page-title">Reports</h1>
+        <ReportsContent medications={DUMMY_MEDICATIONS} />
       </div>
-
-      {/*
-        // const res = await fetch('/api/endpoint');
-      */}
     </DashboardLayout>
   );
 };
