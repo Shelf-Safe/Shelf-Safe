@@ -518,3 +518,12 @@
     background: #b91c1c;
     border-color: #b91c1c
 }
+
+
+.profile-view .btn {
+    align-self: flex-start
+}
+
+.profile-actions .btn {
+    align-self: flex-start
+}
