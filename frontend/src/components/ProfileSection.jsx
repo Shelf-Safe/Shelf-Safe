@@ -118,6 +118,40 @@ export const ProfileSection = ({ user, onLogout }) => {
             )}
           </div>
         )}
+
+        {activeProfileTab === "notifications" && (
+          <div className="profile-notifications">
+            <h3>Notification Preferences</h3>
+
+            <div className="notification-setting">
+              <div className="setting-info">
+                <p>Email Notifications</p>
+                <small>Receive updates via email</small>
+              </div>
+              <input type="checkbox" defaultChecked />
+            </div>
+
+            <div className="notification-setting">
+              <div className="setting-info">
+                <p>Medication Reminders</p>
+                <small>Get notified about medication schedules</small>
+              </div>
+              <input type="checkbox" defaultChecked />
+            </div>
+
+            <div className="notification-setting">
+              <div className="setting-info">
+                <p>Expiry Alerts</p>
+                <small>Alert when medications are about to expire</small>
+              </div>
+              <input type="checkbox" defaultChecked />
+            </div>
+
+            <button className="btn btn-primary" style={{ marginTop: "20px" }}>
+              Save Preferences
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
