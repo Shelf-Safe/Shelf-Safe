@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
+import { medicationService } from '../services/medicationService';
 
 function getPriority(m) {
   if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') return 'High';
@@ -9,21 +9,105 @@ function getPriority(m) {
   return 'Low';
 }
 
+function mapMedication(m) {
+  const id = m._id ? String(m._id) : m.id;
+  const expiryDate = m.expiryDate ? new Date(m.expiryDate) : null;
+  const expiryMonth = m.expiryMonth || (expiryDate ? expiryDate.toLocaleString('default', { month: 'short' }) : '');
+  const expiryYear = m.expiryYear || (expiryDate ? expiryDate.getFullYear() : '');
+  return {
+    id,
+    medicationName: m.medicationName || '',
+    sku: m.sku || m.barcodeData || '',
+    batchLotNumber: m.batchLotNumber || '',
+    expiryMonth,
+    expiryYear,
+    currentStock: m.currentStock ?? 0,
+    status: m.status || 'In Stock',
+    risk: m.risk || 'Low',
+  };
+}
+
 export const Dashboard = () => {
   const [search, setSearch] = useState('');
-  const actionItems = useMemo(() => DUMMY_MEDICATIONS.slice(0, 8), []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({ expiring: 0, expired: 0, highRisk: 0, lowStock: 0 });
+  const [actionItems, setActionItems] = useState([]);
 
-  const expiring = DUMMY_MEDICATIONS.filter((m) => m.status === 'Expiring Soon').length;
-  const expired = 0;
-  const highRisk = DUMMY_MEDICATIONS.filter((m) => m.risk === 'Medium').length;
-  const lowStock = DUMMY_MEDICATIONS.filter((m) => m.status === 'Low Stock' || m.status === 'Out of Stock').length;
+  useEffect(() => {
+    let cancelled = false;
+    medicationService
+      .getAll({ limit: 100 })
+      .then((res) => {
+        if (cancelled || !res.success) return;
+        const list = res.data || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thirtyDaysOut = new Date(today);
+        thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+
+        const expiring = list.filter(
+          (m) => m.expiryDate && new Date(m.expiryDate) <= thirtyDaysOut && new Date(m.expiryDate) >= today
+        ).length;
+        const expired = list.filter(
+          (m) => m.expiryDate && new Date(m.expiryDate) < today
+        ).length;
+        const highRisk = list.filter(
+          (m) => m.risk === 'Medium' || m.risk === 'High' || m.risk === 'Critical'
+        ).length;
+        const lowStock = list.filter(
+          (m) => m.status === 'Low Stock' || m.status === 'Out of Stock'
+        ).length;
+
+        const withPriority = list.map((m) => {
+          let p = 0;
+          if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') p = 3;
+          else if (m.status === 'Low Stock' || m.risk === 'Medium') p = 2;
+          else p = 1;
+          return { m, p };
+        });
+        const sorted = withPriority.sort((a, b) => b.p - a.p).slice(0, 20);
+
+        setStats({ expiring, expired, highRisk, lowStock });
+        setActionItems(sorted.map(({ m }) => mapMedication(m)));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Failed to load dashboard');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = search.trim()
     ? actionItems.filter((m) =>
         m.medicationName.toLowerCase().includes(search.toLowerCase()) ||
-        m.sku.includes(search)
+        (m.sku && m.sku.includes(search))
       )
     : actionItems;
+
+  const { expiring, expired, highRisk, lowStock } = stats;
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="dash">
+          <p className="dash-loading">Loading dashboard…</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="dash">
+          <p className="dash-error">{error}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

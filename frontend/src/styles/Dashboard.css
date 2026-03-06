@@ -217,6 +217,16 @@
 }
 
 /* Dashboard page */
+.dash-loading,
+.dash-error {
+    padding: 24px;
+    font-size: 16px
+}
+
+.dash-error {
+    color: #b91c1c
+}
+
 .dash-header {
     display: flex;
     align-items: center;
