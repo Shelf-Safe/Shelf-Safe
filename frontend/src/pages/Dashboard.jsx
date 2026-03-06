@@ -111,7 +111,9 @@ export const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => (
+                {filtered.map((m) => {
+                  const priority = getPriority(m).toLowerCase();
+                  return (
                   <tr key={m.id}>
                     <td>{m.medicationName}</td>
                     <td>{m.sku}</td>
@@ -124,12 +126,13 @@ export const Dashboard = () => {
                       <Link to={`/inventory/${m.id}`} className="dash-act-link">View</Link>
                     </td>
                     <td>
-                      <span className={`dash-priority dash-priority-${getPriority(m).toLowerCase()}`}>
+                      <span className={`dash-priority dash-priority-${priority}`}>
                         {getPriority(m)}
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
