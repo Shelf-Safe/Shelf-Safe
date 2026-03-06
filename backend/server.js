@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import medicationRoutes from './routes/medications.js';
+import profileRoutes from './routes/profile.js';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ mongoose
 
 app.use('/api/auth', authRoutes);
 app.use('/api/medications', medicationRoutes);
+app.use('/api/profile', profileRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
