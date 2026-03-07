@@ -1,35 +1,58 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { ProfileSection } from '../components/ProfileSection';
+import { getProfile } from '../services/profileService';
 
 export const Profile = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
+
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const profileData = await getProfile();
+        setProfile(profileData);
+      } catch (err) {
+        setError(err.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
-  const displayUser = user
-    ? {
-        name: user.fullName || user.name || user.email || 'User',
-        email: user.email || '—',
-        role: user.role || 'User',
-      }
-    : null;
-
   return (
     <DashboardLayout>
       <div className="profile-page">
         <h1 className="profile-page-title">Profile</h1>
-        {displayUser ? (
-          <ProfileSection user={displayUser} onLogout={handleLogout} />
+
+        {loading ? (
+          <div className="dashboard-section">
+            <p>Loading profile...</p>
+          </div>
+        ) : error ? (
+          <div className="dashboard-section">
+            <p>{error}</p>
+          </div>
+        ) : profile ? (
+          <ProfileSection user={profile} onLogout={handleLogout} />
         ) : (
           <div className="dashboard-section">
-            <p>Not signed in.</p>
+            <p>Profile not found.</p>
           </div>
         )}
       </div>
