@@ -98,3 +98,128 @@ function MethodPicker({ method, setMethod }) {
     </div>
   );
 }
+function BulkImport({ file, setFile }) {
+  const inputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (f) setFile(f);
+    e.target.value = '';
+  };
+
+  const fmt = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div>
+      <h3 className="text-xl font-bold text-gray-900 mb-1">Import in bulk</h3>
+      <p className="text-sm text-gray-500 mb-5">Upload a Excel file to add multiple medications at once.</p>
+
+      
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer mb-3"
+      >
+        <PaperclipIcon />
+        <span className="text-sm text-gray-400">Select a .xls file here</span>
+      </button>
+      <input ref={inputRef} type="file" accept=".xls,.xlsx,.csv" className="hidden" onChange={handleFileChange} />
+
+      
+      {file && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white">
+          <div className="flex-shrink-0 text-gray-400">
+            <FileIcon />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{file.name}</p>
+            <p className="text-xs text-gray-400">{fmt(file.size)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFile(null)}
+            className="flex-shrink-0 p-1 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
+  const videoRef = useRef(null);
+  const [stream, setStream] = useState(null);
+
+  const startCamera = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
+      setStream(s);
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      alert("Camera permission blocked or not available.");
+    }
+  };
+
+  const stopCamera = () => {
+    stream?.getTracks()?.forEach(t => t.stop());
+    setStream(null);
+  };
+
+  return (
+    <div>
+      <h3 className="text-xl font-bold text-gray-900 mb-1">Scan a barcode</h3>
+      <p className="text-sm text-gray-500 mb-6">Scan a medication barcode using your device camera.</p>
+
+      <div className="flex justify-center mb-4">
+        <button
+          type="button"
+          onClick={startCamera}
+          className="px-8 py-3 rounded-xl text-white font-semibold text-base"
+          style={{ backgroundColor: '#00808d' }}
+        >
+          Enable camera
+        </button>
+      </div>
+
+      
+      <video
+        ref={videoRef}
+        className="w-full rounded-xl border border-gray-200"
+        style={{ maxHeight: 260 }}
+        playsInline
+        muted
+      />
+
+      {stream && (
+        <div className="flex justify-center mt-3">
+          <button type="button" onClick={stopCamera} style={btnOutline}>
+            Stop camera
+          </button>
+        </div>
+      )}
+
+      {!barcodePhoto && (
+        <p className="text-sm text-center text-gray-500 mt-4">
+          {"Can't scan? "}
+          <button type="button" onClick={onAddManually}
+            className="font-semibold"
+            style={{ color: '#00808d', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            Add manually
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}

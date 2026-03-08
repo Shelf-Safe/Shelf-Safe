@@ -75,8 +75,151 @@ export const EditMedicationPanel = ({ isOpen, onClose, medication, onSave }) => 
   });
 
   return (
-    <div>
-      {/* Add your JSX content here */}
-    </div>
+<>
+      
+        {isOpen && (
+          <div
+            className="fixed top-0 bottom-0 right-0 bg-black/30 z-40 transition-opacity hidden md:block"
+            style={{ left: '218px' }}
+            onClick={onClose}
+            aria-hidden="true"
+          />
+        )}
+
+      
+      <div
+        className={`fixed top-0 right-0 h-full bg-white shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out
+          w-full sm:w-[420px] md:w-[480px]
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit medication details"
+      >
+        
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
+          <h2 className="text-xl font-bold text-gray-900">Edit medication details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            aria-label="Close"
+          >
+            <XIcon />
+          </button>
+        </div>
+
+        
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+          
+          <div>
+            <FieldLabel>Medication Name</FieldLabel>
+            <TextInput value={form.medicationName} onChange={set('medicationName')} />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Brand Name</FieldLabel>
+            <TextInput value={form.brandName} onChange={set('brandName')} />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Category</FieldLabel>
+            <SelectInput
+              value={form.category}
+              onChange={set('category')}
+              options={CATEGORIES}
+              placeholder=""
+            />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Expiry Date</FieldLabel>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <SelectInput
+                  value={form.expiryMonth}
+                  onChange={set('expiryMonth')}
+                  options={MONTHS}
+                  placeholder="Month"
+                />
+              </div>
+              <div className="flex-1">
+                <SelectInput
+                  value={form.expiryYear}
+                  onChange={set('expiryYear')}
+                  options={YEARS}
+                  placeholder="Year"
+                />
+              </div>
+            </div>
+          </div>
+
+          
+          <div>
+            <FieldLabel>Current Stock</FieldLabel>
+            <TextInput value={form.currentStock} onChange={set('currentStock')} type="number" />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Supplier Name</FieldLabel>
+            <TextInput value={form.supplierName} onChange={set('supplierName')} />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Supplier Contact</FieldLabel>
+            <TextInput value={form.supplierContact} onChange={set('supplierContact')} />
+          </div>
+
+          
+          <div>
+            <FieldLabel>Status</FieldLabel>
+            <SelectInput
+              value={form.status}
+              onChange={set('status')}
+              options={STATUSES}
+              placeholder=""
+            />
+          </div>
+
+          
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <FieldLabel>Risk</FieldLabel>
+              <SelectInput
+                value={form.risk}
+                onChange={set('risk')}
+                options={RISKS}
+                placeholder=""
+              />
+            </div>
+            <div className="flex-1">
+              <FieldLabel>Shelf ID</FieldLabel>
+              <TextInput value={form.shelfId} onChange={set('shelfId')} />
+            </div>
+          </div>
+        </div>
+
+        
+        <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-lg border border-[#00808d] text-sm font-medium text-[#00808d] bg-white hover:bg-[#00808d]/5 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.medicationName.trim()}
+            className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#00808d' }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </>
   );
 };
