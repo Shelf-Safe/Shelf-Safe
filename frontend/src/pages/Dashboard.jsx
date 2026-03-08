@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { medicationService } from '../services/medicationService';
 
@@ -27,7 +27,14 @@ function mapMedication(m) {
   };
 }
 
+const PRIORITY_STYLE = {
+  low:  { bg: '#dcfce7', color: '#166534' },
+  mid:  { bg: '#fef9c3', color: '#854d0e' },
+  high: { bg: '#fce4e4', color: '#b91c1c' },
+};
+
 export const Dashboard = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -172,14 +179,22 @@ export const Dashboard = () => {
         <div className="dash-action">
           <div className="dash-action-head">
             <h2 className="dash-action-title">Action Required</h2>
-            <input
-              type="text"
-              className="dash-search"
-              placeholder="Search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search medications"
-            />
+            <div className="dash-search-wrap">
+              <input
+                type="text"
+                className="dash-search"
+                placeholder="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search medications"
+              />
+              <span className="dash-search-icon-right" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+            </div>
           </div>
           <div className="dash-table-wrap">
             <table className="dash-table">
@@ -188,30 +203,80 @@ export const Dashboard = () => {
                   <th>Medication Name</th>
                   <th>SKU / Barcode</th>
                   <th>Batch / Lot Number</th>
-                  <th>Expiry Date</th>
+                  <th className="dash-th-sortable">
+                    Expiry Date
+                    <span className="dash-th-sort" aria-hidden="true">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <polyline points="19 12 12 19 5 12" />
+                      </svg>
+                    </span>
+                  </th>
                   <th>Current Stock</th>
                   <th>Action</th>
-                  <th>Priority / Urgency</th>
+                  <th className="dash-th-sortable">
+                    Priority / Urgency
+                    <span className="dash-th-sort" aria-hidden="true">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <polyline points="19 12 12 19 5 12" />
+                      </svg>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((m) => {
                   const priority = getPriority(m).toLowerCase();
+                  const ps = PRIORITY_STYLE[priority] || PRIORITY_STYLE.low;
                   return (
-                  <tr key={m.id}>
-                    <td>{m.medicationName}</td>
+                  <tr
+                    key={m.id}
+                    className="dash-table-row"
+                    onClick={() => navigate(`/inventory/${m.id}`)}
+                  >
+                    <td className="dash-td-name">{m.medicationName}</td>
                     <td>{m.sku}</td>
                     <td>{m.batchLotNumber}</td>
                     <td>{m.expiryMonth} {m.expiryYear}</td>
                     <td>{m.currentStock}</td>
-                    <td>
-                      <Link to={`/inventory/${m.id}/edit`} className="dash-act-link">Edit</Link>
-                      {' | '}
-                      <Link to={`/inventory/${m.id}`} className="dash-act-link">View</Link>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="dash-action-btns">
+                        <Link to={`/inventory/${m.id}/edit`} className="dash-btn-icon" aria-label="Edit">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </Link>
+                        <button
+                          type="button"
+                          className="dash-btn-icon"
+                          aria-label="Delete"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await medicationService.remove(m.id);
+                              setActionItems((prev) => prev.filter((item) => item.id !== m.id));
+                            } catch (err) {
+                              console.error(err);
+                            }
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4h6v2" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                     <td>
-                      <span className={`dash-priority dash-priority-${priority}`}>
-                        {getPriority(m)}
+                      <span
+                        className="dash-priority-pill"
+                        style={{ backgroundColor: ps.bg, color: ps.color }}
+                      >
+                        {getPriority(m).toUpperCase()}
                       </span>
                     </td>
                   </tr>
