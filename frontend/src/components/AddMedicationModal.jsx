@@ -223,3 +223,169 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
     </div>
   );
 }
+
+export const AddMedicationModal = ({
+  isOpen,
+  onClose,
+  onBulkSave,
+  onBarcodeSave,
+  isMobile = false,
+}) => {
+  const navigate = useNavigate();
+
+  const [step, setStep] = useState('picker'); 
+  const [method, setMethod] = useState('bulk');
+  const [file, setFile] = useState(null);
+  const [barcodePhoto, setBarcodePhoto] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setStep('picker');
+    setMethod('bulk');
+    setFile(null);
+    setBarcodePhoto(null);
+    setSaving(false);
+  };
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const handleNext = () => {
+    if (method === 'manual') {
+      handleClose();
+      navigate('/inventory/add');
+    } else {
+      setStep(method);
+    }
+  };
+
+  const handleBack = () => setStep('picker');
+
+  const canSave =
+    (step === 'bulk' && !!file) ||
+    (step === 'barcode' && !!barcodePhoto);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (step === 'bulk' && file && onBulkSave) {
+        await onBulkSave(file);
+      } else if (step === 'barcode' && barcodePhoto && onBarcodeSave) {
+        await onBarcodeSave(barcodePhoto.file);
+      }
+    } finally {
+      setSaving(false);
+      handleClose();
+    }
+  };
+
+  if (!isOpen) return null;
+  const panelStyle = isMobile
+    ? {
+        position: 'fixed', inset: 0, zIndex: 200,
+        display: 'flex', alignItems: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.45)',
+      }
+    : {
+        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 200,
+        width: '100%', maxWidth: '400px',
+        backgroundColor: '#fff', boxShadow: '-4px 0 40px rgba(0,0,0,0.12)',
+        display: 'flex', flexDirection: 'column',
+      };
+
+  const innerStyle = isMobile
+    ? {
+        background: '#fff', borderRadius: '20px 20px 0 0',
+        width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+      }
+    : {
+        flex: 1, display: 'flex', flexDirection: 'column', height: '100%',
+      };
+
+  return (
+    <>
+      
+      {!isMobile && (
+        <div
+          onClick={handleClose}
+          style={{
+            position: 'fixed', top: 0, bottom: 0, right: 0, left: '218px', zIndex: 199,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+          }}
+        />
+      )}
+
+      <div style={panelStyle} onClick={isMobile ? (e) => { if (e.target === e.currentTarget) handleClose(); } : undefined}>
+        <div style={innerStyle}>
+          
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            {step !== 'picker' ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors bg-none border-none cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+            ) : (
+              <div />
+            )}
+            <h2 className="text-base font-bold text-gray-900">Add Medication</h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-700 transition-colors bg-none border-none cursor-pointer p-0.5"
+            >
+              <XIcon />
+            </button>
+          </div>
+
+          
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {step === 'picker' && (
+              <MethodPicker method={method} setMethod={setMethod} />
+            )}
+            {step === 'bulk' && (
+              <BulkImport file={file} setFile={setFile} />
+            )}
+            {step === 'barcode' && (
+              <BarcodeScan
+                barcodePhoto={barcodePhoto}
+                setBarcodePhoto={setBarcodePhoto}
+                onAddManually={() => {
+                  handleClose();
+                  navigate('/inventory/add');
+                }}
+              />
+            )}
+          </div>
+
+          
+          <div className="px-6 py-5 border-t border-gray-100 flex items-center justify-between gap-3">
+            <button type="button" onClick={handleClose} style={btnOutline}>
+              Cancel
+            </button>
+            {step === 'picker' ? (
+              <button type="button" onClick={handleNext} style={btnTeal}>
+                Next
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!canSave || saving}
+                style={canSave && !saving ? btnTeal : btnTealDisabled}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
