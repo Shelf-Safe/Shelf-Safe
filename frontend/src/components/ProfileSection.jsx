@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { updateProfile } from '../services/profileService';
 
-export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
-  const [activeProfileTab, setActiveProfileTab] = useState('account');
+export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 'account' }) => {
+  const [activeProfileTab, setActiveProfileTab] = useState(initialTab);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -12,6 +12,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
     name: '',
     employeeId: '',
     userRole: '',
+    pharmacyOrganization: '',
     email: '',
     phone: '',
     role: '',
@@ -22,11 +23,16 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
       name: user?.name || '',
       employeeId: user?.employeeId || '',
       userRole: user?.userRole || '',
+      pharmacyOrganization: user?.pharmacyOrganization || '',
       email: user?.email || '',
       phone: user?.phone || '',
       role: user?.role || '',
     });
   }, [user]);
+
+  useEffect(() => {
+    setActiveProfileTab(initialTab);
+  }, [initialTab]);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -36,10 +42,11 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
     }));
   };
 
-    const handleSaveProfile = async () => {
+  const handleSaveProfile = async () => {
     const trimmedName = profileData.name.trim();
     const trimmedEmployeeId = profileData.employeeId.trim();
     const trimmedUserRole = profileData.userRole.trim();
+    const trimmedPharmacyOrganization = profileData.pharmacyOrganization.trim();
     const trimmedPhone = profileData.phone.trim();
 
     if (!trimmedName) {
@@ -69,6 +76,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
         name: trimmedName,
         employeeId: trimmedEmployeeId,
         userRole: trimmedUserRole,
+        pharmacyOrganization: trimmedPharmacyOrganization,
         phone: trimmedPhone,
       });
 
@@ -87,6 +95,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
       name: user?.name || '',
       employeeId: user?.employeeId || '',
       userRole: user?.userRole || '',
+      pharmacyOrganization: user?.pharmacyOrganization || '',
       email: user?.email || '',
       phone: user?.phone || '',
       role: user?.role || '',
@@ -96,11 +105,11 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
     setSaveMessage('');
   };
 
-    const profileTabs = [
-    { id: 'account', label: 'Account', icon: '👤', disabled: false },
-    { id: 'notifications', label: 'Notifications', icon: '🔔', disabled: true },
-    { id: 'security', label: 'Security', icon: '🔒', disabled: true },
-    { id: 'billing', label: 'Billing', icon: '💳', disabled: true },
+  const profileTabs = [
+    { id: 'account', label: 'Account', icon: '👤' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'security', label: 'Security', icon: '🔒' },
+    { id: 'billing', label: 'Billing', icon: '💳' },
   ];
 
   return (
@@ -109,19 +118,10 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
 
       <div className="profile-tabs">
         {profileTabs.map((tab) => (
-                    <button
+          <button
             key={tab.id}
             className={`profile-tab ${activeProfileTab === tab.id ? 'active' : ''}`}
-            onClick={() => {
-              if (!tab.disabled) {
-                setActiveProfileTab(tab.id);
-              }
-            }}
-            disabled={tab.disabled}
-            style={{
-              opacity: tab.disabled ? 0.5 : 1,
-              cursor: tab.disabled ? 'not-allowed' : 'pointer',
-            }}
+            onClick={() => setActiveProfileTab(tab.id)}
           >
             <span>{tab.icon}</span>
             {tab.label}
@@ -130,7 +130,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
       </div>
 
       <div className="profile-content">
-                {activeProfileTab === 'account' && (
+        {activeProfileTab === 'account' && (
           <div className="profile-account">
             <div
               className="profile-account-header"
@@ -252,6 +252,17 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated }) => {
                   type="text"
                   name="userRole"
                   value={profileData.userRole}
+                  onChange={handleProfileChange}
+                  disabled={!editMode}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Pharmacy / Organization</label>
+                <input
+                  type="text"
+                  name="pharmacyOrganization"
+                  value={profileData.pharmacyOrganization}
                   onChange={handleProfileChange}
                   disabled={!editMode}
                 />
