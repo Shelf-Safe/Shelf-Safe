@@ -44,60 +44,66 @@ router.get('/', verifyToken, async (req, res) => {
 
 router.put('/', verifyToken, async (req, res) => {
   try {
-    const { name, phone, pharmacyOrganization, notifications } = req.body;
+    const { name, employeeId, userRole, phone, pharmacyOrganization, notifications } = req.body;
 
-    const user = await User.findById(req.user.userId);
+    const updateFields = {};
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (name !== undefined) user.name = name;
-    if (phone !== undefined) user.phone = phone;
+    if (name !== undefined) updateFields.name = name.trim();
+    if (employeeId !== undefined) updateFields.employeeId = employeeId.trim();
+    if (userRole !== undefined) updateFields.userRole = userRole.trim();
+    if (phone !== undefined) updateFields.phone = phone.trim();
     if (pharmacyOrganization !== undefined) {
-      user.pharmacyOrganization = pharmacyOrganization;
+      updateFields.pharmacyOrganization = pharmacyOrganization.trim();
     }
 
     if (notifications) {
-      user.notifications = {
-        ...user.notifications,
-        ...notifications
-      };
+      updateFields.notifications = notifications;
     }
 
-    user.recentActivity.push({
-      action: 'Updated profile details',
-      timestamp: new Date()
-    });
+    const updateResult = await User.updateOne(
+      { _id: req.user.userId },
+      {
+        $set: updateFields,
+        $push: {
+          recentActivity: {
+            action: 'Updated profile details',
+            timestamp: new Date(),
+          },
+        },
+      }
+    );
 
-    await user.save();
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const updatedUser = await User.findById(req.user.userId).lean();
 
     res.json({
       success: true,
       message: 'Profile updated successfully',
       data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        employeeId: user.employeeId,
-        userRole: user.userRole,
-        pharmacyOrganization: user.pharmacyOrganization,
-        phone: user.phone,
-        avatarUrl: user.avatarUrl,
-        notifications: user.notifications,
-        twoFactorEnabled: user.twoFactorEnabled
-      }
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        employeeId: updatedUser.employeeId,
+        userRole: updatedUser.userRole,
+        pharmacyOrganization: updatedUser.pharmacyOrganization,
+        phone: updatedUser.phone,
+        avatarUrl: updatedUser.avatarUrl,
+        notifications: updatedUser.notifications,
+        twoFactorEnabled: updatedUser.twoFactorEnabled,
+      },
     });
-
   } catch (error) {
-    console.error(error);
+    console.error('Update profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update profile'
+      message: 'Failed to update profile',
     });
   }
 });

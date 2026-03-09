@@ -6,7 +6,7 @@ import { ProfileSection } from '../components/ProfileSection';
 import { getProfile } from '../services/profileService';
 
 export const Profile = () => {
-  const { logout } = useAuth();
+  const { logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -30,6 +30,11 @@ export const Profile = () => {
     fetchProfile();
   }, []);
 
+  const handleProfileUpdated = (updatedProfile) => {
+    setProfile(updatedProfile);
+    updateUser(updatedProfile);
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -49,7 +54,11 @@ export const Profile = () => {
             <p>{error}</p>
           </div>
         ) : profile ? (
-          <ProfileSection user={profile} onLogout={handleLogout} />
+          <ProfileSection
+            user={profile}
+            onLogout={handleLogout}
+            onProfileUpdated={handleProfileUpdated}
+          />
         ) : (
           <div className="dashboard-section">
             <p>Profile not found.</p>
