@@ -240,4 +240,5 @@ export const EditMedicationPage = () => {
       stopCamera();
       setPhotoMode('upload');
     }, 'image/jpeg', 0.9);
-  };
+  }
+};
