@@ -16,6 +16,12 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     email: '',
     phone: '',
     role: '',
+    notifications: {
+      emailEnabled: true,
+      emailAddress: '',
+      phoneEnabled: false,
+      phoneNumber: '',
+    },
   });
 
   useEffect(() => {
@@ -27,6 +33,12 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
       email: user?.email || '',
       phone: user?.phone || '',
       role: user?.role || '',
+      notifications: {
+        emailEnabled: user?.notifications?.emailEnabled ?? true,
+        emailAddress: user?.notifications?.emailAddress || user?.email || '',
+        phoneEnabled: user?.notifications?.phoneEnabled ?? false,
+        phoneNumber: user?.notifications?.phoneNumber || user?.phone || '',
+      },
     });
   }, [user]);
 
@@ -99,11 +111,31 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
       email: user?.email || '',
       phone: user?.phone || '',
       role: user?.role || '',
+      notifications: {
+        emailEnabled: user?.notifications?.emailEnabled ?? true,
+        emailAddress: user?.notifications?.emailAddress || user?.email || '',
+        phoneEnabled: user?.notifications?.phoneEnabled ?? false,
+        phoneNumber: user?.notifications?.phoneNumber || user?.phone || '',
+      },
     });
     setEditMode(false);
     setError('');
     setSaveMessage('');
   };
+
+
+  const handleNotificationChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    setProfileData((prev) => ({
+      ...prev,
+      notifications: {
+        ...prev.notifications,
+        [name]: type === 'checkbox' ? checked : value,
+      },
+    }));
+  };
+
 
   const profileTabs = [
     { id: 'account', label: 'Account', icon: '👤' },
@@ -307,28 +339,63 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
         {activeProfileTab === 'notifications' && (
           <div className="profile-notifications">
             <h3>Notification Preferences</h3>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              Manage how you want to receive alerts and updates.
+            </p>
+
             <div className="notification-setting">
               <div className="setting-info">
                 <p>Email Notifications</p>
-                <small>Receive updates via email</small>
+                <small>Receive updates and alerts by email</small>
               </div>
-              <input type="checkbox" defaultChecked />
+              <input
+                type="checkbox"
+                name="emailEnabled"
+                checked={profileData.notifications.emailEnabled}
+                onChange={handleNotificationChange}
+              />
             </div>
-            <div className="notification-setting">
+
+            <div className="form-group" style={{ marginTop: '16px' }}>
+              <label>Email Address</label>
+              <input
+                type="email"
+                name="emailAddress"
+                value={profileData.notifications.emailAddress}
+                onChange={handleNotificationChange}
+                disabled={!profileData.notifications.emailEnabled}
+              />
+            </div>
+
+            <div className="notification-setting" style={{ marginTop: '20px' }}>
               <div className="setting-info">
-                <p>Medication Reminders</p>
-                <small>Get notified about medication schedules</small>
+                <p>Phone Notifications</p>
+                <small>Receive updates and alerts by phone</small>
               </div>
-              <input type="checkbox" defaultChecked />
+              <input
+                type="checkbox"
+                name="phoneEnabled"
+                checked={profileData.notifications.phoneEnabled}
+                onChange={handleNotificationChange}
+              />
             </div>
-            <div className="notification-setting">
-              <div className="setting-info">
-                <p>Expiry Alerts</p>
-                <small>Alert when medications are about to expire</small>
-              </div>
-              <input type="checkbox" defaultChecked />
+
+            <div className="form-group" style={{ marginTop: '16px' }}>
+              <label>Phone Number</label>
+              <input
+                type="text"
+                name="phoneNumber"
+                value={profileData.notifications.phoneNumber}
+                onChange={handleNotificationChange}
+                disabled={!profileData.notifications.phoneEnabled}
+              />
             </div>
-            <button className="btn btn-primary" style={{ marginTop: '20px' }}>
+
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: '20px' }}
+              type="button"
+            >
               Save Preferences
             </button>
           </div>
