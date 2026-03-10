@@ -47,6 +47,8 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
 
   useEffect(() => {
     setActiveProfileTab(initialTab);
+    setNotificationMessage('');
+    setNotificationError('');
   }, [initialTab]);
 
   const handleProfileChange = (e) => {
@@ -126,6 +128,17 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     setSaveMessage('');
   };
 
+  const resetNotificationForm = (sourceUser) => {
+    setProfileData((prev) => ({
+      ...prev,
+      notifications: {
+        emailEnabled: sourceUser?.notifications?.emailEnabled ?? true,
+        emailAddress: sourceUser?.notifications?.emailAddress || sourceUser?.email || '',
+        phoneEnabled: sourceUser?.notifications?.phoneEnabled ?? false,
+        phoneNumber: sourceUser?.notifications?.phoneNumber || sourceUser?.phone || '',
+      },
+    }));
+  };
 
   const handleNotificationChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -146,6 +159,18 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     const trimmedEmailAddress = profileData.notifications.emailAddress.trim();
     const trimmedPhoneNumber = profileData.notifications.phoneNumber.trim();
 
+    if (profileData.notifications.emailEnabled && !trimmedEmailAddress) {
+      setNotificationError('Email address is required when email notifications are enabled.');
+      setNotificationMessage('');
+      return;
+    }
+
+    if (profileData.notifications.phoneEnabled && !trimmedPhoneNumber) {
+      setNotificationError('Phone number is required when phone notifications are enabled.');
+      setNotificationMessage('');
+      return;
+    }
+
     try {
       setNotificationSaving(true);
       setNotificationMessage('');
@@ -161,7 +186,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
       });
 
       onProfileUpdated(updatedProfile);
-
+      resetNotificationForm(updatedProfile);
       setNotificationMessage('Notification preferences updated successfully!');
     } catch (err) {
       setNotificationError(err.message || 'Failed to update notification preferences');
@@ -187,7 +212,13 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
           <button
             key={tab.id}
             className={`profile-tab ${activeProfileTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveProfileTab(tab.id)}
+            onClick={() => {
+              setActiveProfileTab(tab.id);
+              if (tab.id === 'notifications') {
+                setNotificationMessage('');
+                setNotificationError('');
+              }
+            }}
           >
             <span>{tab.icon}</span>
             {tab.label}
@@ -432,18 +463,36 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
                 value={profileData.notifications.phoneNumber}
                 onChange={handleNotificationChange}
                 disabled={!profileData.notifications.phoneEnabled}
+
               />
+              <small style={{ color: '#666' }}>
+                Phone preferences are saved now. SMS delivery can be connected later.
+              </small>
             </div>
 
-            <button
-              className="btn btn-primary"
-              style={{ marginTop: '20px' }}
-              type="button"
-              onClick={handleSaveNotifications}
-              disabled={notificationSaving}
-            >
-              {notificationSaving ? 'Saving...' : 'Save Preferences'}
-            </button>
+            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => {
+                  resetNotificationForm(user);
+                  setNotificationMessage('');
+                  setNotificationError('');
+                }}
+                disabled={notificationSaving}
+              >
+                Reset
+              </button>
+
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={handleSaveNotifications}
+                disabled={notificationSaving}
+              >
+                {notificationSaving ? 'Saving...' : 'Save Preferences'}
+              </button>
+            </div>
           </div>
         )}
 
