@@ -7,6 +7,9 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [error, setError] = useState('');
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationError, setNotificationError] = useState('');
 
   const [profileData, setProfileData] = useState({
     name: '',
@@ -127,6 +130,9 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
   const handleNotificationChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    setNotificationMessage('');
+    setNotificationError('');
+
     setProfileData((prev) => ({
       ...prev,
       notifications: {
@@ -134,6 +140,34 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
         [name]: type === 'checkbox' ? checked : value,
       },
     }));
+  };
+
+  const handleSaveNotifications = async () => {
+    const trimmedEmailAddress = profileData.notifications.emailAddress.trim();
+    const trimmedPhoneNumber = profileData.notifications.phoneNumber.trim();
+
+    try {
+      setNotificationSaving(true);
+      setNotificationMessage('');
+      setNotificationError('');
+
+      const updatedProfile = await updateProfile({
+        notifications: {
+          emailEnabled: profileData.notifications.emailEnabled,
+          emailAddress: trimmedEmailAddress,
+          phoneEnabled: profileData.notifications.phoneEnabled,
+          phoneNumber: trimmedPhoneNumber,
+        },
+      });
+
+      onProfileUpdated(updatedProfile);
+
+      setNotificationMessage('Notification preferences updated successfully!');
+    } catch (err) {
+      setNotificationError(err.message || 'Failed to update notification preferences');
+    } finally {
+      setNotificationSaving(false);
+    }
   };
 
 
@@ -342,6 +376,8 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
             <p style={{ color: '#666', marginBottom: '20px' }}>
               Manage how you want to receive alerts and updates.
             </p>
+            {notificationMessage && <p style={{ color: 'green' }}>{notificationMessage}</p>}
+            {notificationError && <p style={{ color: 'red' }}>{notificationError}</p>}
 
             <div className="notification-setting">
               <div className="setting-info">
@@ -356,7 +392,15 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
               />
             </div>
 
-            <div className="form-group" style={{ marginTop: '16px' }}>
+            <div
+              className="form-group"
+              style={{
+                marginTop: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
               <label>Email Address</label>
               <input
                 type="email"
@@ -395,8 +439,10 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
               className="btn btn-primary"
               style={{ marginTop: '20px' }}
               type="button"
+              onClick={handleSaveNotifications}
+              disabled={notificationSaving}
             >
-              Save Preferences
+              {notificationSaving ? 'Saving...' : 'Save Preferences'}
             </button>
           </div>
         )}
