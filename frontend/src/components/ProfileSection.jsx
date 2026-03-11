@@ -10,6 +10,12 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
   const [notificationSaving, setNotificationSaving] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationError, setNotificationError] = useState('');
+  const [securityData, setSecurityData] = useState({
+    password: '',
+    confirmPassword: '',
+    twoFactorEnabled: false,
+    resetContact: '',
+  });
 
   const [profileData, setProfileData] = useState({
     name: '',
@@ -42,6 +48,13 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
         phoneEnabled: user?.notifications?.phoneEnabled ?? false,
         phoneNumber: user?.notifications?.phoneNumber || user?.phone || '',
       },
+
+    });
+    setSecurityData({
+      password: '',
+      confirmPassword: '',
+      twoFactorEnabled: user?.twoFactorEnabled ?? false,
+      resetContact: user?.email || user?.phone || '',
     });
   }, [user]);
 
@@ -193,6 +206,24 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     } finally {
       setNotificationSaving(false);
     }
+  };
+
+  const handleSecurityChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    setSecurityData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSecurityCancel = () => {
+    setSecurityData({
+      password: '',
+      confirmPassword: '',
+      twoFactorEnabled: user?.twoFactorEnabled ?? false,
+      resetContact: user?.email || user?.phone || '',
+    });
   };
 
 
@@ -455,7 +486,7 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
               />
             </div>
 
-            <div className="form-group" style={{ marginTop: '16px' }}>
+            <div className="mt-4 flex flex-col gap-2">
               <label>Phone Number</label>
               <input
                 type="text"
@@ -498,22 +529,165 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
 
         {activeProfileTab === 'security' && (
           <div className="profile-security">
-            <h3>Security Settings</h3>
-            <div className="security-item">
-              <h4>Change Password</h4>
-              <p>Last changed: 3 months ago</p>
-              <button className="btn btn-secondary">Change Password</button>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px',
+              }}
+            >
+              <h3>Security</h3>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSecurityCancel}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
-            <div className="security-item">
-              <h4>Two-Factor Authentication</h4>
-              <p>Enhance your account security</p>
-              <button className="btn btn-secondary">Enable 2FA</button>
+
+            <div
+              className="form-group"
+              style={{
+                marginTop: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <label>Password</label>
+              <input
+                type="password"
+                name="password"
+                value={securityData.password}
+                onChange={handleSecurityChange}
+              />
             </div>
-            <div className="security-item">
-              <h4>Active Sessions</h4>
-              <p>Manage devices and sessions</p>
-              <button className="btn btn-secondary">View Sessions</button>
+
+            <div
+              className="form-group"
+              style={{
+                marginTop: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <label>Confirm Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={securityData.confirmPassword}
+                onChange={handleSecurityChange}
+              />
             </div>
+
+            <div
+              className="notification-setting"
+              style={{ marginTop: '24px' }}
+            >
+              <div className="setting-info">
+                <p>Enable two-factor authentication</p>
+              </div>
+
+              <label
+                style={{
+                  position: 'relative',
+                  display: 'inline-block',
+                  width: '46px',
+                  height: '24px'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  name="twoFactorEnabled"
+                  checked={securityData.twoFactorEnabled}
+                  onChange={handleSecurityChange}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+
+                <span
+                  style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: securityData.twoFactorEnabled ? '#008c95' : '#ccc',
+                    transition: '.3s',
+                    borderRadius: '24px'
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      height: '18px',
+                      width: '18px',
+                      left: securityData.twoFactorEnabled ? '24px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '.3s',
+                      borderRadius: '50%'
+                    }}
+                  />
+                </span>
+              </label>
+            </div>
+
+            <div style={{ marginTop: '40px' }}>
+              <h4>Forgot Your Password?</h4>
+
+              <p style={{ color: '#666', maxWidth: '600px' }}>
+                Don’t worry, we will help you to reset. Enter your email or phone number to receive a one-time password reset link.
+              </p>
+
+              <div
+                className="form-group"
+                style={{
+                  marginTop: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <label>Enter your email/phone number</label>
+
+                <input
+                  type="text"
+                  name="resetContact"
+                  value={securityData.resetContact}
+                  onChange={handleSecurityChange}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginTop: '20px' }}
+              >
+                Send Reset Link
+              </button>
+            </div>
+
+            <div style={{ marginTop: '40px' }}>
+              <p style={{ color: '#008c95', fontWeight: '500' }}>
+                Contact our support
+              </p>
+            </div>
+
           </div>
         )}
 
