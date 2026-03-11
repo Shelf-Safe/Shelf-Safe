@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { medicationService } from '../services/medicationService';
+import { computeDonutData, computeBarData, DonutChart, BarChart } from '../components/DashboardCharts';
 
 function getPriority(m) {
   if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') return 'High';
@@ -40,6 +41,8 @@ export const Dashboard = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ expiring: 0, expired: 0, highRisk: 0, lowStock: 0 });
   const [actionItems, setActionItems] = useState([]);
+  const [donutData, setDonutData] = useState([]);
+  const [barData, setBarData] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +80,8 @@ export const Dashboard = () => {
 
         setStats({ expiring, expired, highRisk, lowStock });
         setActionItems(sorted.map(({ m }) => mapMedication(m)));
+        setDonutData(computeDonutData(list));
+        setBarData(computeBarData(list));
       })
       .catch((err) => {
         if (!cancelled) setError(err.message || 'Failed to load dashboard');
@@ -158,20 +163,13 @@ export const Dashboard = () => {
         <div className="dash-charts">
           <div className="dash-chart-box">
             <h2 className="dash-chart-title">Inventory Health Score</h2>
-            <div className="dash-chart-placeholder">
-              <span className="dash-chart-center">Overall 70</span>
-              <div className="dash-chart-legend">
-                <span>Not expiring soon (120+ days) 10,000</span>
-                <span>Attention needed (90 days) 1100</span>
-                <span>Critical (60 days) 300</span>
-              </div>
-            </div>
+            <DonutChart data={donutData} />
           </div>
           <div className="dash-chart-box">
             <h2 className="dash-chart-title">Expiry Risk Distribution</h2>
-            <div className="dash-chart-placeholder">
-              <span>Bar chart placeholder</span>
-              <div className="dash-chart-legend">Expired, 30, 60, 90, 120, 120+ days</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ fontSize: '10px', color: '#9ca3af', writingMode: 'vertical-rl', transform: 'rotate(180deg)', marginTop: 8 }}>Number of Medications</span>
+              <BarChart data={barData} />
             </div>
           </div>
         </div>
