@@ -17,6 +17,10 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     resetContact: '',
   });
 
+  const [securitySaving, setSecuritySaving] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState('');
+  const [securityError, setSecurityError] = useState('');
+
   const [profileData, setProfileData] = useState({
     name: '',
     employeeId: '',
@@ -211,6 +215,9 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
   const handleSecurityChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    setSecurityMessage('');
+    setSecurityError('');
+
     setSecurityData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -224,6 +231,56 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
       twoFactorEnabled: user?.twoFactorEnabled ?? false,
       resetContact: user?.email || user?.phone || '',
     });
+    setSecurityMessage('');
+    setSecurityError('');
+  };
+
+  const handleSaveSecurity = async () => {
+    const trimmedPassword = securityData.password.trim();
+    const trimmedConfirmPassword = securityData.confirmPassword.trim();
+
+    if (trimmedPassword && trimmedPassword.length < 6) {
+      setSecurityError('Password must be at least 6 characters long.');
+      setSecurityMessage('');
+      return;
+    }
+
+    if (trimmedPassword !== trimmedConfirmPassword) {
+      setSecurityError('Password and Confirm Password must match.');
+      setSecurityMessage('');
+      return;
+    }
+
+    try {
+      setSecuritySaving(true);
+      setSecurityMessage('');
+      setSecurityError('');
+
+      const payload = {
+        twoFactorEnabled: securityData.twoFactorEnabled,
+      };
+
+      if (trimmedPassword) {
+        payload.password = trimmedPassword;
+      }
+
+      const updatedProfile = await updateProfile(payload);
+
+      onProfileUpdated(updatedProfile);
+
+      setSecurityData({
+        password: '',
+        confirmPassword: '',
+        twoFactorEnabled: updatedProfile?.twoFactorEnabled ?? false,
+        resetContact: updatedProfile?.email || updatedProfile?.phone || '',
+      });
+
+      setSecurityMessage('Security settings updated successfully!');
+    } catch (err) {
+      setSecurityError(err.message || 'Failed to update security settings');
+    } finally {
+      setSecuritySaving(false);
+    }
   };
 
 
@@ -538,6 +595,8 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
                 marginBottom: '24px',
               }}
             >
+              {securityMessage && <p style={{ color: 'green' }}>{securityMessage}</p>}
+              {securityError && <p style={{ color: 'red' }}>{securityError}</p>}
               <h3>Security</h3>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -552,8 +611,10 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
                 <button
                   type="button"
                   className="btn btn-primary"
+                  onClick={handleSaveSecurity}
+                  disabled={securitySaving}
                 >
-                  Save Changes
+                  {securitySaving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
