@@ -1,4 +1,5 @@
 import express from 'express';
+import bcryptjs from 'bcryptjs';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
 
@@ -44,7 +45,7 @@ router.get('/', verifyToken, async (req, res) => {
 
 router.put('/', verifyToken, async (req, res) => {
   try {
-    const { name, employeeId, userRole, phone, pharmacyOrganization, notifications } = req.body;
+    const { name, employeeId, userRole, phone, pharmacyOrganization, notifications, password, twoFactorEnabled } = req.body;
 
     const updateFields = {};
 
@@ -56,8 +57,16 @@ router.put('/', verifyToken, async (req, res) => {
       updateFields.pharmacyOrganization = pharmacyOrganization.trim();
     }
 
-    if (notifications) {
+    if (notifications !== undefined) {
       updateFields.notifications = notifications;
+    }
+
+    if (twoFactorEnabled !== undefined) {
+      updateFields.twoFactorEnabled = twoFactorEnabled;
+    }
+
+    if (password !== undefined && password.trim() !== '') {
+      updateFields.password = await bcryptjs.hash(password.trim(), 10);
     }
 
     const updateResult = await User.updateOne(
