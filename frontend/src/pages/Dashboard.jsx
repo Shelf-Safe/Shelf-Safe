@@ -22,10 +22,22 @@ function mapMedication(m) {
     batchLotNumber: m.batchLotNumber || '',
     expiryMonth,
     expiryYear,
+    expiryDate: expiryDate ? expiryDate.getTime() : 0,
     currentStock: m.currentStock ?? 0,
     status: m.status || 'In Stock',
     risk: m.risk || 'Low',
   };
+}
+
+function SortIcon({ className }) {
+  return (
+    <span className={className} aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 6l4-4 4 4" />
+      <path d="M4 10l4 4 4-4" />
+      </svg>
+    </span>
+  );
 }
 
 const PRIORITY_STYLE = {
@@ -43,6 +55,17 @@ export const Dashboard = () => {
   const [actionItems, setActionItems] = useState([]);
   const [donutData, setDonutData] = useState([]);
   const [barData, setBarData] = useState([]);
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +121,20 @@ export const Dashboard = () => {
         (m.sku && m.sku.includes(search))
       )
     : actionItems;
+
+  const priorityOrder = { High: 3, Mid: 2, Low: 1 };
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    if (!sortBy) return 0;
+    if (sortBy === 'expiry') {
+      const diff = (a.expiryDate || 0) - (b.expiryDate || 0);
+      return sortDir === 'asc' ? diff : -diff;
+    }
+    if (sortBy === 'priority') {
+      const diff = (priorityOrder[getPriority(b)] ?? 0) - (priorityOrder[getPriority(a)] ?? 0);
+      return sortDir === 'asc' ? diff : -diff;
+    }
+    return 0;
+  });
 
   const { expiring, expired, highRisk, lowStock } = stats;
 
@@ -167,8 +204,8 @@ export const Dashboard = () => {
           </div>
           <div className="dash-chart-box">
             <h2 className="dash-chart-title">Expiry Risk Distribution</h2>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ fontSize: '10px', color: '#9ca3af', writingMode: 'vertical-rl', transform: 'rotate(180deg)', marginTop: 8 }}>Number of Medications</span>
+            <div className="dash-chart-bar-outer">
+              <span className="dash-chart-bar-y-label">Number of Medications</span>
               <BarChart data={barData} />
             </div>
           </div>
@@ -201,30 +238,34 @@ export const Dashboard = () => {
                   <th>Medication Name</th>
                   <th>SKU / Barcode</th>
                   <th>Batch / Lot Number</th>
-                  <th className="dash-th-sortable">
+                  <th
+                    className="dash-th-sortable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSort('expiry')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('expiry'); } }}
+                    aria-sort={sortBy === 'expiry' ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                  >
                     Expiry Date
-                    <span className="dash-th-sort" aria-hidden="true">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <polyline points="19 12 12 19 5 12" />
-                      </svg>
-                    </span>
+                    <SortIcon className="dash-th-sort" />
                   </th>
                   <th>Current Stock</th>
                   <th>Action</th>
-                  <th className="dash-th-sortable">
+                  <th
+                    className="dash-th-sortable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSort('priority')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('priority'); } }}
+                    aria-sort={sortBy === 'priority' ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                  >
                     Priority / Urgency
-                    <span className="dash-th-sort" aria-hidden="true">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <polyline points="19 12 12 19 5 12" />
-                      </svg>
-                    </span>
+                    <SortIcon className="dash-th-sort" />
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => {
+                {sortedFiltered.map((m) => {
                   const priority = getPriority(m).toLowerCase();
                   const ps = PRIORITY_STYLE[priority] || PRIORITY_STYLE.low;
                   return (
@@ -269,7 +310,7 @@ export const Dashboard = () => {
                         </button>
                       </div>
                     </td>
-                    <td>
+                    <td className="dash-td-priority">
                       <span
                         className="dash-priority-pill"
                         style={{ backgroundColor: ps.bg, color: ps.color }}
