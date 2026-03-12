@@ -1,0 +1,51 @@
+name: Jira Status Sync
+
+on:
+  push:
+    branches:
+      - "**"
+
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  jira-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Extract Jira Issue Key
+        id: extract
+        run: |
+          TEXT="${{ github.event.head_commit.message }} ${{ github.event.pull_request.title }}"
+          ISSUE=$(echo "$TEXT" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
+
+      - name: Move ticket to In Progress
+        if: github.event_name == 'push' && steps.extract.outputs.issue != ''
+        run: |
+          curl --request POST \
+          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}/transitions" \
+          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+          --header "Content-Type: application/json" \
+          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_IN_PROGRESS_ID }}\"}}"
+
+      - name: Move ticket to In Review
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        run: |
+          ISSUE=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+')
+          curl --request POST \
+          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE/transitions" \
+          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+          --header "Content-Type: application/json" \
+          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_REVIEW_ID }}\"}}"
+
+      - name: Move ticket to Done
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        run: |
+          ISSUE=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+')
+          curl --request POST \
+          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE/transitions" \
+          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+          --header "Content-Type: application/json" \
+          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_DONE_ID }}\"}}"
