@@ -50,3 +50,5 @@ rm -rf node_modules package-lock.json. (these force delete the already corrupted
 npm install
 
 npm run dev
+
+testing-automation-via-github
