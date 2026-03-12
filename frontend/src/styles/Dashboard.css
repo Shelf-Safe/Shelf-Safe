@@ -258,6 +258,175 @@
     gap: 8px
 }
 
+/* ─── Chart inner (Part 2: full styling) ───────────────────────────────────── */
+.dash-chart-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.dash-chart-donut-wrap {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+}
+
+.dash-chart-donut-svg {
+    display: block;
+    transform: rotate(-90deg);
+}
+
+.dash-chart-donut-slice {
+    fill: none;
+    stroke-linecap: butt;
+    transition: stroke 0.2s ease;
+}
+
+.dash-chart-donut-slice--teal {
+    stroke: #00808D;
+    stroke-width: 40;
+    stroke-linecap: butt;
+    filter: drop-shadow(0 0 0.8px rgba(0, 128, 141, 0.4));
+}
+
+.dash-chart-donut-slice--attention {
+    stroke: #003A56;
+    stroke-width: 25;
+}
+
+.dash-chart-donut-slice--critical {
+    stroke: #C00F0C;
+    stroke-width: 25;
+}
+
+.dash-chart-donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-chart-donut-center-label {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.dash-chart-donut-center-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+}
+
+.dash-chart-legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dash-chart-legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.dash-chart-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+
+.dash-chart-legend-line1 {
+    margin: 0;
+    font-size: 12px;
+    color: #374151;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.dash-chart-legend-line2 {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.dash-chart-legend-value {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.dash-chart-bar-wrap {
+    position: relative;
+}
+
+.dash-chart-bar-y-axis {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 178px;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #9ca3af;
+    line-height: 1;
+}
+
+.dash-chart-bar-y-days {
+    font-size: 10px;
+    color: #9ca3af;
+}
+
+.dash-chart-bar-svg-wrap {
+    margin-left: 30px;
+}
+
+.dash-chart-bar-x-wrap {
+    display: flex;
+    margin-top: 4px;
+}
+
+.dash-chart-bar-x-label {
+    font-size: 10px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.dash-chart-bar-y-label {
+    font-size: 10px;
+    color: #9ca3af;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin-top: 8px;
+}
+
+.dash-chart-bar-outer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    padding-left: 28px;
+    box-sizing: border-box
+}
+
+.dash-chart-bar-outer .dash-chart-bar-y-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin-top: 8px
+}
+
 .dash {
     display: flex;
     flex-direction: column;
@@ -345,7 +514,7 @@
 .dash-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px
+    font-size: 16px
 }
 
 .dash-table th {
@@ -377,13 +546,20 @@
     white-space: nowrap;
     flex-direction: row;
     align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.dash-th-sortable:hover .dash-th-sort {
+    color: #6b7280
 }
 
 .dash-th-sort {
-    display: inline;
-    margin-left: 3px;
+    display: inline-flex;
+    margin-left: 4px;
     vertical-align: middle;
-    color: #9ca3af
+    color: #9ca3af;
+    flex-shrink: 0
 }
 
 .dash-table-row {
@@ -433,6 +609,10 @@
 .dash-btn-icon:hover {
     background: #f9fafb;
     border-color: #d1d5db
+}
+
+.dash-table td.dash-td-priority {
+    text-align: center;
 }
 
 .dash-priority-pill {
@@ -513,7 +693,37 @@
     }
 
     .dash-charts {
-        grid-template-columns: 1fr
+        grid-template-columns: 1fr;
+        gap: 16px
+    }
+
+    .dash-chart-box {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box
+    }
+
+    /* First chart (donut): full width when stacked */
+    .dash-charts > .dash-chart-box:first-child {
+        width: 100%;
+        max-width: 100%;
+        justify-self: stretch
+    }
+
+    /* Second chart (bar): contain and scale to fit */
+    .dash-charts > .dash-chart-box:last-child {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch
+    }
+
+    .dash-chart-bar-outer {
+        min-width: 0;
+        max-width: 100%
+    }
+
+    .dash-chart-bar-svg-wrap {
+        min-width: 0
     }
 }
 
