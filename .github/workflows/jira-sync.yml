@@ -2,8 +2,9 @@ name: Jira Status Sync
 
 on:
   push:
-    branches:
-      - "**"
+    branches-ignore:
+      - main
+      - development
 
   pull_request:
     types: [opened, closed]
@@ -13,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Extract Jira Issue Key
         id: extract
         run: |
@@ -49,3 +49,4 @@ jobs:
           --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
           --header "Content-Type: application/json" \
           --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_DONE_ID }}\"}}"
+
