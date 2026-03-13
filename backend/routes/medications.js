@@ -54,21 +54,22 @@ router.get('/', verifyToken, async (req, res) => {
       ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50000);
+    const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limitNum;
     const total = await Medication.countDocuments(query);
     const medications = await Medication.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNum);
 
     res.json({
       success: true,
       data: medications,
       pagination: {
         total,
-        page: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit)),
-        limit: parseInt(limit),
+        page: Math.max(parseInt(page, 10) || 1, 1),
+        pages: Math.ceil(total / limitNum),
+        limit: limitNum,
       },
     });
   } catch (error) {
