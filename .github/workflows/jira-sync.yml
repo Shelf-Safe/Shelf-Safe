@@ -16,37 +16,97 @@ jobs:
     steps:
       - name: Extract Jira Issue Key
         id: extract
+        shell: bash
         run: |
-          TEXT="${{ github.event.head_commit.message }} ${{ github.event.pull_request.title }}"
-          ISSUE=$(echo "$TEXT" | grep -oE '[A-Z]+-[0-9]+' | head -1)
-          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
+          TEXT="${{ github.event.head_commit.message }} ${{ github.event.pull_request.title }} ${{ github.event.pull_request.head.ref }}"
+          ISSUE=$(echo "$TEXT" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+
+      - name: Stop if no Jira key found
+        if: steps.extract.outputs.issue == ''
+        run: |
+          echo "No Jira issue key found. Exiting."
+          exit 0
+
+      - name: Get current Jira status
+        id: jira_status
+        shell: bash
+        run: |
+          RESPONSE=$(curl --silent --show-error \
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          STATUS=$(echo "$RESPONSE" | python3 -c 'import sys, json; print(json.load(sys.stdin)["fields"]["status"]["name"])')
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "Current Jira status: $STATUS"
 
       - name: Move ticket to In Progress
-        if: github.event_name == 'push' && steps.extract.outputs.issue != ''
+        if: >
+          github.event_name == 'push' &&
+          steps.extract.outputs.issue != '' &&
+          steps.jira_status.outputs.status != 'Done' &&
+          steps.jira_status.outputs.status != 'In Review' &&
+          steps.jira_status.outputs.status != 'In Progress'
         run: |
           curl --request POST \
-          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}/transitions" \
-          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-          --header "Content-Type: application/json" \
-          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_IN_PROGRESS_ID }}\"}}"
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}/transitions" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_IN_PROGRESS_ID }}\"}}"
+
+      - name: Refresh Jira status before PR open transition
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        id: jira_status_pr_open
+        shell: bash
+        run: |
+          RESPONSE=$(curl --silent --show-error \
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          STATUS=$(echo "$RESPONSE" | python3 -c 'import sys, json; print(json.load(sys.stdin)["fields"]["status"]["name"])')
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "Current Jira status before PR open transition: $STATUS"
 
       - name: Move ticket to In Review
-        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.action == 'opened' &&
+          steps.extract.outputs.issue != '' &&
+          steps.jira_status_pr_open.outputs.status != 'Done' &&
+          steps.jira_status_pr_open.outputs.status != 'In Review'
         run: |
-          ISSUE=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+')
           curl --request POST \
-          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE/transitions" \
-          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-          --header "Content-Type: application/json" \
-          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_REVIEW_ID }}\"}}"
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}/transitions" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_REVIEW_ID }}\"}}"
+
+      - name: Refresh Jira status before merge transition
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        id: jira_status_pr_merge
+        shell: bash
+        run: |
+          RESPONSE=$(curl --silent --show-error \
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          STATUS=$(echo "$RESPONSE" | python3 -c 'import sys, json; print(json.load(sys.stdin)["fields"]["status"]["name"])')
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "Current Jira status before merge transition: $STATUS"
 
       - name: Move ticket to Done
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.action == 'closed' &&
+          github.event.pull_request.merged == true &&
+          steps.extract.outputs.issue != '' &&
+          steps.jira_status_pr_merge.outputs.status != 'Done'
         run: |
-          ISSUE=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+')
           curl --request POST \
-          --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE/transitions" \
-          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-          --header "Content-Type: application/json" \
-          --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_DONE_ID }}\"}}"
-
+            --url "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue }}/transitions" \
+            --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --data "{\"transition\":{\"id\":\"${{ secrets.JIRA_DONE_ID }}\"}}"
