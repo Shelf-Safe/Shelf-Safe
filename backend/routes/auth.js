@@ -89,6 +89,48 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // 2FA CHECK 
+    if (user.twoFactorEnabled) {
+
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+      user.twoFactorCode = otp;
+      user.twoFactorExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+      await user.save({ validateBeforeSave: false });
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Your ShelfSafe verification code',
+        html: `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+      <h2 style="color:#00808d;">Two-Factor Authentication</h2>
+      <p>Hi ${user.name},</p>
+      <p>Your ShelfSafe verification code is:</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${otp}</p>
+      <p>This code will expire in 10 minutes.</p>
+    </div>
+  `,
+      });
+
+      return res.status(200).json({
+        success: true,
+        requiresTwoFactor: true,
+        email: user.email,
+        message: 'Verification code sent to your email',
+      });
+    }
+
+    // NORMAL LOGIN 
     const token = generateToken(user);
 
     res.status(200).json({
@@ -102,6 +144,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
       },
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -109,6 +152,67 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
+
+router.post('/verify-2fa', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and verification code are required',
+      });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (
+      !user.twoFactorCode ||
+      !user.twoFactorExpires ||
+      user.twoFactorCode !== otp ||
+      user.twoFactorExpires < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    user.twoFactorCode = null;
+    user.twoFactorExpires = null;
+    await user.save({ validateBeforeSave: false });
+
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Two-factor verification successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Server error during two-factor verification',
+    });
+  }
+});
+
+
+
 
 router.get('/me', verifyToken, async (req, res) => {
   try {

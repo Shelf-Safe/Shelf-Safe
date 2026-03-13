@@ -46,6 +46,8 @@ const userSchema = new mongoose.Schema(
       default: 'dummy01',
     },
     twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorCode: { type: String, default: null },
+    twoFactorExpires: { type: Date, default: null },
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
     recentActivity: {

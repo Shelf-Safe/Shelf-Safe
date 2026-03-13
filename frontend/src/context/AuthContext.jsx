@@ -20,14 +20,29 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const response = await authService.login(email, password);
-      setUser(response.user);
+  try {
+    const response = await authService.login(email, password);
+
+    if (response.requiresTwoFactor) {
       return response;
-    } catch (error) {
-      throw error;
     }
-  };
+
+    setUser(response.user);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const verifyTwoFactor = async (email, otp) => {
+  try {
+    const response = await authService.verifyTwoFactor(email, otp);
+    setUser(response.user);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
 
   const register = async (name, email, password, confirmPassword) => {
     try {
@@ -59,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateUser }}>
+      value={{ user, loading, login, verifyTwoFactor, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
