@@ -211,5 +211,104 @@ router.post('/connect', verifyToken, async (req, res) => {
   }
 });
 
-export default router;
+router.post('/sync', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, message: 'Invalid user.' });
 
+    const connection = await PosConnection.findOne({
+      orgId: orgIdFor(req),
+      userId,
+      isConnected: true,
+    });
+    if (!connection) return res.status(400).json({ success: false, message: 'No POS connection found.' });
+
+    let importedFromPos = 0;
+    let nextCursor = connection.posCursor || 0;
+    let changedItems = [];
+
+    try {
+      const token = await loginToPos(connection.username || 'sam', connection.password || 'password123');
+
+      try {
+        await posRequest('/api/simulator/force-change', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (_e) {
+        // optional
+      }
+
+      const cursor = connection.posCursor || 0;
+      let delta = null;
+      try {
+        delta = await posRequest(`/api/sync/changes?cursor=${cursor}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (_e) {
+        // fallback to full inventory
+      }
+
+      if (delta?.changes?.length) {
+        const medChanges = delta.changes.filter((c) => c.collection === 'medications');
+        const docs = medChanges.map((c) => c.document || c.fullDocument).filter(Boolean);
+        if (docs.length) {
+          importedFromPos = await upsertMedications(req, docs);
+          changedItems = docs.map((m) => ({
+            medicationName: m.medicationName || m.name || m.genericName,
+            sku: m.sku || m.barcodeData,
+            currentStock: Number(m.currentStock ?? m.quantityOnHand ?? 0),
+            status: m.status || 'In Stock',
+          }));
+        }
+        nextCursor = Number(delta.nextCursor ?? delta.cursor ?? cursor);
+      } else {
+        const inv = await posRequest('/api/inventory?limit=500', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const items = inv.items || [];
+        importedFromPos = await upsertMedications(req, items);
+        nextCursor = Number(inv.inventoryVersion ?? inv.totalItems ?? items.length ?? 0);
+        changedItems = items.map((m) => ({
+          medicationName: m.medicationName || m.name || m.genericName,
+          sku: m.sku || m.barcodeData,
+          currentStock: Number(m.currentStock ?? m.quantityOnHand ?? 0),
+          status: m.status || 'In Stock',
+        }));
+      }
+    } catch (posError) {
+      return res.status(500).json({
+        success: false,
+        message: posError.message || 'Unable to sync with POS. Is the simulator running?',
+      });
+    }
+
+    connection.posCursor = nextCursor;
+    connection.lastSyncedAt = new Date();
+    await connection.save();
+
+    res.json({
+      success: true,
+      connection,
+      summary: { totalImported: importedFromPos, medications: importedFromPos },
+      imported: importedFromPos,
+      changed: importedFromPos,
+      changedItems,
+      mode: 'sync',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Unable to sync POS.' });
+  }
+});
+
+router.post('/disconnect', verifyToken, async (req, res) => {
+  const userId = req.user?.userId;
+  if (!userId) return res.status(401).json({ success: false, message: 'Invalid user.' });
+  await PosConnection.findOneAndUpdate(
+    { orgId: orgIdFor(req), userId },
+    { $set: { isConnected: false, password: '', posCursor: 0 } }
+  );
+  res.json({ success: true, message: 'POS disconnected.' });
+});
+
+export default router;
