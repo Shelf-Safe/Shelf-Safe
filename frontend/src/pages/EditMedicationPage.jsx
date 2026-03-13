@@ -206,7 +206,6 @@ export const EditMedicationPage = () => {
       return;
     }
     try {
-      // Camera access only works on HTTPS (or localhost). On HTTP deployments it will be blocked by the browser.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
@@ -240,5 +239,133 @@ export const EditMedicationPage = () => {
       stopCamera();
       setPhotoMode('upload');
     }, 'image/jpeg', 0.9);
-  }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.medicationName.trim()) {
+      setError('Medication name is required.');
+      return;
+    }
+    setError('');
+    setSaving(true);
+
+    if (useDummy) {
+      navigate(`/inventory/${id}`);
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      if (photoFile) fd.append('photo', photoFile);
+
+      await medicationService.update(id, fd);
+      navigate(`/inventory/${id}`);
+    } catch (err) {
+      setError(err.message || 'Failed to update medication.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => () => stopCamera(), []);
+
+  return (
+    <DashboardLayout pageTitle="">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/inventory/${id}`)}
+            className="text-gray-500 hover:text-gray-800 transition-colors"
+            aria-label="Back to details"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Medication</h1>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-sm text-gray-600">
+          Loading...
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="bg-white rounded-2xl border border-gray-200 p-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Photo */}
+            <div className="lg:col-span-1">
+              <div className="text-sm font-semibold text-gray-800 mb-3">Photo</div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Medication"
+                    className="w-full h-56 object-cover rounded-lg border border-gray-200 bg-white"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-full h-56 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-sm text-gray-500">
+                    No image
+                  </div>
+                )}
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMode('upload')}
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold border ${photoMode === 'upload' ? 'border-[#00808d] text-[#00808d] bg-[#f0fafa]' : 'border-gray-200 text-gray-700 bg-white'}`}
+                  >
+                    Upload
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMode('camera')}
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold border ${photoMode === 'camera' ? 'border-[#00808d] text-[#00808d] bg-[#f0fafa]' : 'border-gray-200 text-gray-700 bg-white'}`}
+                  >
+                    Camera
+                  </button>
+                </div>
+
+                {photoMode === 'upload' && (
+                  <div className="mt-4">
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#00808d' }}
+                    >
+                      Choose File
+                    </button>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Tip: On mobile, "Choose File" usually offers Camera or Photo Library.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+    </DashboardLayout>
+  );
 };
