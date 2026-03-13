@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { updateProfile } from '../services/profileService';
+import { updateProfile, requestPasswordReset } from '../services/profileService';
+
 
 export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 'account' }) => {
   const [activeProfileTab, setActiveProfileTab] = useState(initialTab);
@@ -16,6 +17,9 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     twoFactorEnabled: false,
     resetContact: '',
   });
+  const [resetLinkSending, setResetLinkSending] = useState(false);
+  const [resetLinkMessage, setResetLinkMessage] = useState('');
+  const [resetLinkError, setResetLinkError] = useState('');
 
   const [securitySaving, setSecuritySaving] = useState(false);
   const [securityMessage, setSecurityMessage] = useState('');
@@ -217,6 +221,8 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
 
     setSecurityMessage('');
     setSecurityError('');
+    setResetLinkMessage('');
+    setResetLinkError('');
 
     setSecurityData((prev) => ({
       ...prev,
@@ -233,6 +239,8 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
     });
     setSecurityMessage('');
     setSecurityError('');
+    setResetLinkMessage('');
+    setResetLinkError('');
   };
 
   const handleSaveSecurity = async () => {
@@ -280,6 +288,30 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
       setSecurityError(err.message || 'Failed to update security settings');
     } finally {
       setSecuritySaving(false);
+    }
+  };
+
+  const handleSendResetLink = async () => {
+    const trimmedResetContact = securityData.resetContact.trim();
+
+    if (!trimmedResetContact) {
+      setResetLinkError('Please enter your email or phone number.');
+      setResetLinkMessage('');
+      return;
+    }
+
+    try {
+      setResetLinkSending(true);
+      setResetLinkMessage('');
+      setResetLinkError('');
+
+      const response = await requestPasswordReset(trimmedResetContact);
+
+      setResetLinkMessage(response.message || 'Reset link sent successfully.');
+    } catch (err) {
+      setResetLinkError(err.message || 'Failed to send reset link');
+    } finally {
+      setResetLinkSending(false);
     }
   };
 
@@ -715,6 +747,9 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
                 Don’t worry, we will help you to reset. Enter your email or phone number to receive a one-time password reset link.
               </p>
 
+              {resetLinkMessage && <p style={{ color: 'green' }}>{resetLinkMessage}</p>}
+              {resetLinkError && <p style={{ color: 'red' }}>{resetLinkError}</p>}
+
               <div
                 className="form-group"
                 style={{
@@ -738,8 +773,10 @@ export const ProfileSection = ({ user, onLogout, onProfileUpdated, initialTab = 
                 type="button"
                 className="btn btn-secondary"
                 style={{ marginTop: '20px' }}
+                onClick={handleSendResetLink}
+                disabled={resetLinkSending}
               >
-                Send Reset Link
+                {resetLinkSending ? 'Sending...' : 'Send Reset Link'}
               </button>
             </div>
 
