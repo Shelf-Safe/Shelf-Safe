@@ -53,6 +53,7 @@ export const Inventory = () => {
   const [filterCategory, setFilterCategory] = useState('');
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [onlyExpired, setOnlyExpired] = useState(false);
 
   const normalizeMedication = (m) => {
     const id = m?._id?.$oid || m?._id || m?.id || m?.sku || '';
@@ -84,11 +85,11 @@ export const Inventory = () => {
 
   const filtered = medications.filter((m) => {
     const q = search.toLowerCase();
-    return (
-      (!q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').toLowerCase().includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q)) &&
-      (!filterStatus || m.status === filterStatus) &&
-      (!filterCategory || m.category === filterCategory)
-    );
+    const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').toLowerCase().includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
+    const matchStatus = !filterStatus || m.status === filterStatus;
+    const matchCategory = !filterCategory || m.category === filterCategory;
+    const matchExpiredOnly = !onlyExpired || m.status === 'Expiring Soon';
+    return matchSearch && matchStatus && matchCategory && matchExpiredOnly;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -115,11 +116,12 @@ export const Inventory = () => {
             value={search}
             onChange={(e) => { setSearch(e.target.value); reset(); }}
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-[#00808d]"
+            aria-label="Search medications"
           />
         </div>
 
         <div className="relative">
-          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer">
+          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]" aria-label="Filter by status">
             <option value="">Status</option>
             <option>In Stock</option>
             <option>Low Stock</option>
@@ -130,12 +132,33 @@ export const Inventory = () => {
         </div>
 
         <div className="relative">
-          <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer">
+          <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]" aria-label="Filter by category">
             <option value="">Category</option>
             {categories.map((c) => <option key={c}>{c}</option>)}
           </select>
           <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDown /></div>
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer ml-1">
+          <span style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>Only expired</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={onlyExpired}
+            onClick={() => { setOnlyExpired((v) => !v); reset(); }}
+            style={{
+              width: 38, height: 21, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative',
+              backgroundColor: onlyExpired ? '#00808d' : '#d1d5db', transition: 'background-color 0.2s', padding: 0,
+            }}
+            aria-label="Show only expired medications"
+          >
+            <span style={{
+              position: 'absolute', top: 2.5, left: onlyExpired ? 19 : 3,
+              width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff',
+              transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+        </label>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
