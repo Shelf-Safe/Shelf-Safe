@@ -14,9 +14,24 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+const allowedOrigins = [
+  process.env.CLIENT_URL, 
+  "https://shelf-safe-frontend.vercel.app", 
+  "http://localhost:5173"
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json({ limit: '20mb' }));
@@ -33,8 +48,10 @@ async function connectDB() {
   
   if (!cached.promise) {
     const opts = {
-      bufferCommands: false, 
+      bufferCommands: false,
       serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4 
     };
     cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => mongoose);
   }
