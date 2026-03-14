@@ -9,26 +9,120 @@ import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
 
 const ITEMS_PER_PAGE = 13;
 
-const Icon = ({ children, ...p }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{children}</svg>
-);
-const SearchIcon = () => <Icon width="15" height="15" stroke="#9ca3af"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></Icon>;
-const ChevronDown = () => <Icon width="12" height="12" stroke="#6b7280"><polyline points="6 9 12 15 18 9" /></Icon>;
-const ChevronLeft = () => <Icon width="14" height="14"><polyline points="15 18 9 12 15 6" /></Icon>;
-const ChevronRight = () => <Icon width="14" height="14"><polyline points="9 18 15 12 9 6" /></Icon>;
+function SearchIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+}
+function ChevronDown() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
+}
+function ChevronLeft() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
+}
+function ChevronRight() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
+}
+function PlusIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
+}
 
-function Pagination({ page, totalPages, onChange }) {
-  const btn = (active) => `w-7 h-7 flex items-center justify-center rounded-lg text-sm font-medium border-none ${active ? 'text-white' : 'text-gray-500 hover:bg-gray-100'}`;
+function CategoryDropdown({ categories = [], selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (cat) => {
+    onChange(
+      selected.includes(cat) ? selected.filter((c) => c !== cat) : [...selected, cat]
+    );
+  };
+
+  const label = selected.length === 0 ? 'Category' : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+
   return (
-    <div className="flex items-center justify-center gap-1 py-3 px-4 border-t border-gray-100">
-      <button className={btn(false)} onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1}><ChevronLeft /></button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 7).map((p) => (
-        <button key={p} className={btn(p === page)} style={p === page ? { backgroundColor: '#00808d' } : {}} onClick={() => onChange(p)}>{p}</button>
-      ))}
-      <button className={btn(false)} onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages}><ChevronRight /></button>
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-gray-300 transition-colors"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span>{label}</span>
+        <ChevronDown />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 100,
+            backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '10px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: '180px', padding: '8px 0',
+          }}
+          role="listbox"
+          aria-multiselectable="true"
+          aria-label="Select categories"
+        >
+          <p style={{ margin: '4px 12px 6px', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Select the category:
+          </p>
+          {categories.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
+          ) : categories.map((cat) => (
+            <label
+              key={cat}
+              className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
+              style={{ fontSize: '13px', color: '#374151' }}
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(cat)}
+                onChange={() => toggle(cat)}
+                className="w-4 h-4 rounded border-gray-300 accent-[#00808d]"
+                aria-label={cat}
+              />
+              {cat}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+function Pagination({ page, totalPages, onChange }) {
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  const btnCls = (active) =>
+    `w-7 h-7 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer border-none ${active ? 'text-white' : 'text-gray-500 bg-transparent hover:bg-gray-100'}`;
+
+  return (
+    <div className="flex items-center justify-center gap-1 py-3 px-4 border-t border-gray-100">
+      <button className={btnCls(false)} onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} aria-label="Previous"><ChevronLeft /></button>
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`e${i}`} className="w-7 h-7 flex items-center justify-center text-sm text-gray-400">...</span>
+        ) : (
+          <button key={p} className={btnCls(p === page)} style={p === page ? { backgroundColor: '#00808d' } : {}} onClick={() => onChange(p)} aria-label={`Page ${p}`} aria-current={p === page ? 'page' : undefined}>{p}</button>
+        )
+      )}
+      <button className={btnCls(false)} onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} aria-label="Next"><ChevronRight /></button>
+    </div>
+  );
+}
+
 
 function UserChip({ user }) {
   const navigate = useNavigate();
