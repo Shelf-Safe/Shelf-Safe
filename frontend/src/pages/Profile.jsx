@@ -119,9 +119,9 @@ export const Profile = () => {
     recentActivity:
       profile?.recentActivity?.length > 0
         ? profile.recentActivity
-            .slice()
-            .reverse()
-            .map((item) => item.action)
+          .slice()
+          .reverse()
+          .map((item) => item.action)
         : ['No recent activity available'],
   };
 
@@ -148,7 +148,9 @@ export const Profile = () => {
                 <h1 className="flex items-center gap-2 text-3xl font-bold text-[#1e1e1e]">
                   Profile
                   <button
-                    onClick={() => navigate('/settings')}
+                    onClick={() =>
+                      navigate(window.innerWidth >= 1024 ? '/settings?section=account' : '/settings')
+                    }
                     className="ml-1 rounded p-1 transition-colors hover:bg-[#f1f1f1]"
                     aria-label="Settings"
                   >
@@ -168,7 +170,9 @@ export const Profile = () => {
                   Logout
                 </button>
                 <button
-                  onClick={() => navigate('/settings?section=account')}
+                  onClick={() =>
+                    navigate(window.innerWidth >= 1024 ? '/settings?section=account' : '/settings')
+                  }
                   className="rounded-lg bg-[#00808d] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#006e79]"
                 >
                   Edit Profile

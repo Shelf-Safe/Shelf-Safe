@@ -57,7 +57,7 @@ export const Settings = () => {
             user={profile}
             onLogout={handleLogout}
             onProfileUpdated={handleProfileUpdated}
-            initialTab={section || 'account'}
+            initialTab={section || null}
           />
         ) : (
           <div className="rounded-xl border border-[#e6e6e6] bg-white p-6 text-sm text-[#636363]">
