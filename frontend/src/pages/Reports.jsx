@@ -85,7 +85,7 @@ const FORMATS = ['PDF', 'CSV'];
 const DATE_FILTERS = ['Last 30 days', 'Last 60 days', 'Last 90 days', 'Last 6 months', 'Last year'];
 const FORMAT_FILTERS = ['All Formats', 'PDF', 'CSV'];
 
-const API_BASE = import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE = import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:5003';
 
 const INFO_CARDS = [
   {
@@ -132,7 +132,9 @@ function Dropdown({ value, onChange, options, placeholder = 'All', className = '
   const ref = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -141,22 +143,41 @@ function Dropdown({ value, onChange, options, placeholder = 'All', className = '
     <div ref={ref} className={`relative ${className}`}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-200 rounded-lg hover:border-gray-300 whitespace-nowrap"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-200 rounded-lg hover:border-gray-300"
       >
-        <span className={value ? 'text-gray-800' : 'text-gray-400'}>{value || placeholder}</span>
-        <IconChevronDown size={13} color="#6b7280" />
+        <span
+          className={`block min-w-0 flex-1 overflow-hidden text-left text-ellipsis whitespace-nowrap ${
+            value ? 'text-gray-800' : 'text-gray-400'
+          }`}
+          title={value || placeholder}
+        >
+          {value || placeholder}
+        </span>
+
+        <span className="flex-shrink-0">
+          <IconChevronDown size={13} color="#6b7280" />
+        </span>
       </button>
+
       {open && (
         <div className="absolute left-0 z-50 min-w-full mt-1 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg top-full">
-          {options.map(opt => (
+          {options.map((opt) => (
             <button
               key={opt}
               type="button"
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 ${value === opt ? 'text-[#00808d] font-semibold bg-[#f0fdfc]' : 'text-gray-700'}`}
+              onClick={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+              className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 ${
+                value === opt ? 'text-[#00808d] font-semibold bg-[#f0fdfc]' : 'text-gray-700'
+              }`}
+              title={opt}
             >
-              {opt}
+              <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                {opt}
+              </span>
             </button>
           ))}
         </div>
@@ -453,21 +474,21 @@ export const Reports = () => {
           onChange={v => setFilterType(v === filterType ? '' : v)}
           options={REPORT_TYPES}
           placeholder="Report Type"
-          className="w-40"
+          className="w-49"
         />
         <Dropdown
           value={filterFormat}
           onChange={setFilterFormat}
           options={FORMAT_FILTERS}
           placeholder="Format"
-          className="w-32"
+          className="w-36"
         />
         <Dropdown
           value={filterCreatedBy}
           onChange={setFilterCreatedBy}
           options={createdByOptions}
           placeholder="Created By"
-          className="w-32"
+          className="w-44"
         />
       </div>
 

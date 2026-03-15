@@ -1,0 +1,19 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/.angular": true,
+        "**/.classpath": true,
+        "**/.factorypath": true,
+        "**/.fleet": true,
+        "**/.husky": true,
+        "**/.idea": true,
+        "**/.nx-container": true,
+        "**/.project": true,
+        "**/.settings": true,
+        "**/node_modules": false
+    }
+}
