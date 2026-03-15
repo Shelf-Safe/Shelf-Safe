@@ -330,19 +330,19 @@ export const Dashboard = () => {
 
         <div className="dash-cards">
           <div className="dash-card">
-            <div className="dash-card-label">Expiring Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Expiring</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expiring}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">Expired Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Expired</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expired}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">High-Risk Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">High-Risk</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{highRisk}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">Low Stock Items</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Low Stock</span><span className="dash-card-label-b">Items</span></div>
             <div className="dash-card-num">{lowStock}</div>
           </div>
         </div>
