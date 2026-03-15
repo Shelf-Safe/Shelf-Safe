@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { updateProfile, requestPasswordReset } from '../services/profileService';
+import '../styles/ProfileSettingsMobile.css';
 import {
   FiSettings,
   FiBell,
@@ -27,14 +28,12 @@ const Toggle = ({ checked, onChange }) => (
     role="switch"
     aria-checked={checked}
     onClick={() => onChange(!checked)}
-    className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
-      checked ? 'bg-[#00808d]' : 'bg-[#d2d2d2]'
-    }`}
+    className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${checked ? 'bg-[#00808d]' : 'bg-[#d2d2d2]'
+      }`}
   >
     <span
-      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-        checked ? 'left-5' : 'left-0.5'
-      }`}
+      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-5' : 'left-0.5'
+        }`}
     />
   </button>
 );
@@ -43,9 +42,8 @@ const Checkbox = ({ checked, onChange }) => (
   <button
     type="button"
     onClick={() => onChange(!checked)}
-    className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
-      checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
-    }`}
+    className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
+      }`}
   >
     {checked && (
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
@@ -148,23 +146,38 @@ const buildSecurityData = (user) => ({
 
 function AccountTab({ profileData, onChange, onSave, onCancel, saving }) {
   return (
-    <div>
-      <PanelHeader
-        title="Profile Details"
-        onCancel={onCancel}
-        onSave={onSave}
-        saving={saving}
-      />
+    <div className="ps-account-wrap">
+      <div className="ps-account-header mb-6 flex items-start justify-between gap-4">
+        <h2 className="text-[18px] font-bold text-[#1e1e1e]">Profile Details</h2>
 
-      <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#d9d9d9] text-2xl font-bold text-[#1e1e1e]">
+        <div className="ps-account-actions flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-[#00808d] bg-white px-3 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-md bg-[#00808d] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      <div className="ps-account-profile mb-6 flex items-center gap-4">
+        <div className="ps-account-avatar flex h-20 w-20 items-center justify-center rounded-full bg-[#d9d9d9] text-2xl font-bold text-[#1e1e1e]">
           {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
         </div>
+
         <div>
-          <p className="text-[20px] font-bold text-[#1e1e1e]">
+          <p className="ps-account-name text-[20px] font-bold text-[#1e1e1e]">
             {profileData.name || 'User'}
           </p>
-          <p className="text-[16px] text-[#4f5250]">
+          <p className="ps-account-role text-[16px] text-[#4f5250]">
             {profileData.userRole || 'Lead Pharmacist'}
           </p>
         </div>
@@ -175,31 +188,25 @@ function AccountTab({ profileData, onChange, onSave, onCancel, saving }) {
           { label: 'Full Name', name: 'name' },
           { label: 'Employee ID', name: 'employeeId' },
           { label: 'User Role', name: 'userRole' },
-          { label: 'Pharmacy/ Organization Name', name: 'pharmacyOrganization' },
+          { label: 'Pharmacy/Organization Name', name: 'pharmacyOrganization' },
+          { label: 'Email', name: 'email', disabled: true },
           { label: 'Phone # (Optional)', name: 'phone' },
-        ].map(({ label, name }) => (
+        ].map(({ label, name, disabled }) => (
           <Field key={name} label={label}>
             <input
               className={inputCls}
               name={name}
+              type={name === 'email' ? 'email' : 'text'}
               value={profileData[name]}
-              onChange={onChange}
+              onChange={disabled ? undefined : onChange}
+              disabled={disabled}
+              readOnly={disabled}
             />
           </Field>
         ))}
-
-        <Field label="Email">
-          <input
-            className={`${inputCls} bg-white`}
-            type="email"
-            value={profileData.email}
-            disabled
-            readOnly
-          />
-        </Field>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8">
         <p className="mb-2 text-sm font-bold text-[#1e1e1e]">Preferences</p>
         <ul className="flex flex-col gap-1 text-sm text-[#4f5250]">
           <li>• English (Canada)</li>
@@ -360,11 +367,10 @@ function SecurityTab({
           type="button"
           onClick={onSendReset}
           disabled={resetSending || !securityData.resetContact.trim()}
-          className={`mt-5 rounded-md px-4 py-2 text-sm font-medium transition ${
-            securityData.resetContact.trim()
-              ? 'bg-[#00808d] text-white hover:bg-[#006d77]'
-              : 'cursor-not-allowed bg-[#e6e6e6] text-[#a6a6a6]'
-          }`}
+          className={`mt-5 rounded-md px-4 py-2 text-sm font-medium transition ${securityData.resetContact.trim()
+            ? 'bg-[#00808d] text-white hover:bg-[#006d77]'
+            : 'cursor-not-allowed bg-[#e6e6e6] text-[#a6a6a6]'
+            }`}
         >
           {resetSending ? 'Sending...' : 'Send Reset Link'}
         </button>
@@ -392,7 +398,7 @@ const INVOICES = [
 function BillingTab() {
   return (
     <div>
-      <PanelHeader title="Billing" onCancel={() => {}} onSave={() => {}} />
+      <PanelHeader title="Billing" onCancel={() => { }} onSave={() => { }} />
 
       <p className="mb-3 text-sm font-bold text-[#1e1e1e]">Professional Plan</p>
       <div className="mb-6 rounded-xl border border-[#e6e6e6] bg-white p-4">
@@ -474,8 +480,8 @@ function BillingTab() {
   );
 }
 
-export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' }) => {
-  const [activeTab, setActiveTab] = useState(initialTab);
+export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) => {
+  const [activeTab, setActiveTab] = useState(initialTab || null);
   const [profileData, setProfileData] = useState(buildProfileData(user));
   const [securityData, setSecurityData] = useState(buildSecurityData(user));
 
@@ -489,13 +495,16 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' 
   const [secSaving, setSecSaving] = useState(false);
   const [resetSending, setResetSending] = useState(false);
 
+  const [showMobilePanel, setShowMobilePanel] = useState(Boolean(initialTab));
+
   useEffect(() => {
     setProfileData(buildProfileData(user));
     setSecurityData(buildSecurityData(user));
   }, [user]);
 
   useEffect(() => {
-    setActiveTab(initialTab);
+    setActiveTab(initialTab || null);
+    setShowMobilePanel(Boolean(initialTab));
     setNotifFb({ msg: '', err: '' });
   }, [initialTab]);
 
@@ -508,6 +517,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' 
 
   const switchTab = (id) => {
     setActiveTab(id);
+    setShowMobilePanel(true);
     clearAllFeedback();
   };
 
@@ -704,9 +714,12 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' 
   };
 
   return (
-    <div className="rounded-xl border border-[#e6e6e6] bg-white">
+    <div
+      className={`ps-shell rounded-xl border border-[#e6e6e6] bg-white ${showMobilePanel ? 'mobile-panel' : 'mobile-menu'
+        }`}
+    >
       <div className="flex flex-col lg:flex-row">
-        <div className="w-full border-b border-[#e6e6e6] bg-white lg:w-[440px] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
+        <div className="ps-sidebar w-full border-b border-[#e6e6e6] bg-white lg:w-[440px] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
           <div className="border-b border-[#e6e6e6] px-6 py-5">
             <h1 className="text-[38px] font-black leading-none text-[#1e1e1e]">
               Settings
@@ -718,9 +731,8 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' 
               key={item.id}
               type="button"
               onClick={() => switchTab(item.id)}
-              className={`flex w-full items-start gap-4 border-b border-[#e6e6e6] px-6 py-5 text-left transition-colors ${
-                activeTab === item.id ? 'bg-[#f5f5f5]' : 'bg-white hover:bg-[#fafafa]'
-              }`}
+              className={`flex w-full items-start gap-4 border-b border-[#e6e6e6] px-6 py-5 text-left transition-colors ${activeTab === item.id ? 'bg-[#f5f5f5]' : 'bg-white hover:bg-[#fafafa]'
+                }`}
             >
               <div className="mt-0.5 flex-shrink-0">{item.icon}</div>
               <div>
@@ -733,8 +745,9 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = 'account' 
           ))}
         </div>
 
-        <div className="flex-1 overflow-visible bg-[#f5f5f5] px-6 py-4">
-          <div className="max-w-[700px]">
+        <div className="ps-panel flex-1 overflow-visible bg-[#f5f5f5] px-6 py-4">
+          <div className="ps-panel-inner max-w-[700px]">
+
             {activeTab === 'account' && <Messages success={fb.msg} error={fb.err} />}
             {activeTab === 'notifications' && (
               <Messages success={notifFb.msg} error={notifFb.err} />
