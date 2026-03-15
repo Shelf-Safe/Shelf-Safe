@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import medicationRoutes from './routes/medications.js';
 import profileRoutes from './routes/profile.js';
 import posRoutes from './routes/pos.js';
+import reportRoutes from './routes/reports.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/pos', posRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -37,6 +39,9 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
   });
 });
+
+const reportsPath = path.resolve(process.cwd(), 'uploads', 'reports');
+app.use('/files/reports', express.static(reportsPath));
 
 app.use((req, res) => {
   res.status(404).json({
