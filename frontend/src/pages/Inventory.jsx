@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDataSource } from '../context/DataSourceContext';
@@ -9,6 +9,7 @@ import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
 
 const ITEMS_PER_PAGE = 13;
 
+/* ─── Icons ──────────────────────────────────────────────────────────────────*/
 function SearchIcon() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
 }
@@ -25,6 +26,7 @@ function PlusIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 }
 
+/* ─── Category multi-select dropdown ────────────────────────────────────────*/
 function CategoryDropdown({ categories = [], selected, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -93,6 +95,8 @@ function CategoryDropdown({ categories = [], selected, onChange }) {
     </div>
   );
 }
+
+/* ─── Pagination ─────────────────────────────────────────────────────────────*/
 function Pagination({ page, totalPages, onChange }) {
   const pages = [];
   if (totalPages <= 7) {
@@ -123,86 +127,164 @@ function Pagination({ page, totalPages, onChange }) {
   );
 }
 
-
+/* ─── UserChip ───────────────────────────────────────────────────────────────*/
 function UserChip({ user }) {
   const navigate = useNavigate();
   const initials = user?.name ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'S';
   return (
-    <button onClick={() => navigate('/profile')} className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0">
-      <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{initials}</span>
+    <button onClick={() => navigate('/profile')} className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0 hover:opacity-80" aria-label="Profile">
+      <div style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: '13px', fontWeight: '700', color: '#374151' }}>{initials}</span>
       </div>
-      <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{user?.name?.split(' ')[0] || 'Steven'}</span>
+      <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>{user?.name?.split(' ')[0] || 'Steven'}</span>
     </button>
   );
 }
 
+/* ─── Inventory page ─────────────────────────────────────────────────────────*/
 export const Inventory = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { useDummy } = useDataSource();
-  const [medications, setMedications] = useState(DUMMY_MEDICATIONS);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [page, setPage] = useState(1);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [onlyExpired, setOnlyExpired] = useState(false);
 
+  const [medications, setMedications] = useState(DUMMY_MEDICATIONS);
+  const [search, setSearch]           = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterExpiry, setFilterExpiry] = useState('');
+  const [filterCategories, setFilterCategories] = useState([]);
+  const [onlyExpired, setOnlyExpired] = useState(false);
+  const [page, setPage]               = useState(1);
+  const [modalOpen, setModalOpen]     = useState(false);
+
+  // Normalize API records (Mongo uses _id and Date strings)
   const normalizeMedication = (m) => {
-    const id = m?._id?.$oid || m?._id || m?.id || m?.sku || '';
+    const pick = (...vals) => vals.find((v) => {
+      if (v === 0) return true;
+      return v !== undefined && v !== null && String(v).trim() !== '';
+    });
+
+    const rawMongoId =
+      pick(
+        m?._id?.$oid,
+        typeof m?._id === 'string' ? m._id : '',
+        typeof m?.id === 'string' ? m.id : '',
+        typeof m?.routeId === 'string' ? m.routeId : '',
+        typeof m?.legacyId === 'string' ? m.legacyId : '',
+      ) || '';
+
+    const routeId =
+      pick(
+        rawMongoId,
+        m?.sku,
+        m?.barcodeData,
+        m?.batchLotNumber,
+        m?.lotNumber,
+        m?.barcodeUpc,
+      ) || '';
+
+    const medicationName = m.medicationName || m.name || '';
+    const sku = m.sku || m.barcodeUpc || '';
+    const batchLotNumber = m.batchLotNumber || m.lotNumber || '';
+    const category = m.category || '';
+    const supplierName = m.supplierName || m.supplier || '';
+    const status = m.status || 'In Stock';
+    const currentStock =
+      typeof m.currentStock === 'number'
+        ? m.currentStock
+        : typeof m.totalQuantityOnHand === 'number'
+          ? m.totalQuantityOnHand
+          : typeof m.quantityOnHand === 'number'
+            ? m.quantityOnHand
+            : 0;
+
+    const expiryDateRaw = m.expiryDate || '';
+    let expiryDate = '';
+    try {
+      if (expiryDateRaw) {
+        const d = new Date(expiryDateRaw);
+        expiryDate = isNaN(d.getTime()) ? String(expiryDateRaw) : d.toISOString();
+      } else if (m.expiryMonth && m.expiryYear) {
+        expiryDate = `${m.expiryMonth} ${m.expiryYear}`;
+      }
+    } catch {
+      expiryDate = String(expiryDateRaw || '');
+    }
+
     return {
       ...m,
-      _id: id,
-      id,
-      routeId: id,
-      medicationName: m.medicationName || m.name || '',
-      sku: m.sku || m.barcodeUpc || '',
-      batchLotNumber: m.batchLotNumber || m.lotNumber || '',
-      category: m.category || '',
-      supplierName: m.supplierName || m.supplier || '',
-      status: m.status || 'In Stock',
-      currentStock: m.currentStock ?? m.totalQuantityOnHand ?? m.quantityOnHand ?? 0,
-      expiryDate: m.expiryDate || '',
+      _id: rawMongoId,
+      id: rawMongoId,
+      routeId,
+      medicationName,
+      sku,
+      batchLotNumber,
+      category,
+      supplierName,
+      status,
+      currentStock,
+      expiryDate,
       photoUrl: m.photoUrl || m.imageUrl || '',
     };
   };
 
+  // Swap data source
   useEffect(() => {
-    if (useDummy) return setMedications(DUMMY_MEDICATIONS);
-    medicationService.getAll({ limit: 'all' })
-      .then((res) => setMedications((res?.data || []).map(normalizeMedication)))
-      .catch(() => setMedications([]));
+    if (useDummy) {
+      setMedications(DUMMY_MEDICATIONS);
+    } else {
+      medicationService.getAll({ limit: 'all' }).then((res) => {
+        if (res?.data) setMedications(res.data.map(normalizeMedication));
+      }).catch(() => setMedications([]));
+    }
   }, [useDummy]);
 
-  const categories = useMemo(() => [...new Set(medications.map((m) => m.category).filter(Boolean))], [medications]);
+  // Categories for dropdown (derived from data)
+  const categories = React.useMemo(() => {
+    const set = new Set();
+    for (const m of medications) {
+      const c = (m?.category ?? '').toString().trim();
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [medications]);
 
+  // Filter
   const filtered = medications.filter((m) => {
     const q = search.toLowerCase();
-    const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').toLowerCase().includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
+    const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
     const matchStatus = !filterStatus || m.status === filterStatus;
-    const matchCategory = !filterCategory || m.category === filterCategory;
+    const matchExpiry = !filterExpiry || m.expiryDate === filterExpiry;
+    const matchCat    = filterCategories.length === 0 || filterCategories.includes(m.category);
     const matchExpiredOnly = !onlyExpired || m.status === 'Expiring Soon';
-    return matchSearch && matchStatus && matchCategory && matchExpiredOnly;
+    return matchSearch && matchStatus && matchExpiry && matchCat && matchExpiredOnly;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(page, totalPages);
-  const slice = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const safePage   = Math.min(page, totalPages);
+  const slice      = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
   const reset = () => setPage(1);
+
   const thCls = 'py-3 px-4 text-left text-xs font-semibold text-gray-500 bg-white border-b border-gray-100 whitespace-nowrap';
 
   return (
     <DashboardLayout headerRight={<UserChip user={user} />}>
+      {/* Page header */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-        <h1 style={{ fontSize: 32, fontWeight: 700, color: '#111827', margin: 0 }}>Inventory</h1>
-        <button onClick={() => setModalOpen(true)} className="px-5 py-2 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: '#00808d' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: 0 }}>Inventory</h1>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="px-5 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity whitespace-nowrap"
+          style={{ backgroundColor: '#00808d' }}
+        >
           Add Medication
         </button>
       </div>
 
+      {/* Filter bar — no label, just controls inline */}
       <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-        <div className="relative" style={{ minWidth: 160, maxWidth: 240, flex: 1 }}>
+        {/* Search */}
+        <div className="relative" style={{ minWidth: '160px', maxWidth: '240px', flex: 1 }}>
           <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></span>
           <input
             type="text"
@@ -214,8 +296,14 @@ export const Inventory = () => {
           />
         </div>
 
+        {/* Status */}
         <div className="relative">
-          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]" aria-label="Filter by status">
+          <select
+            value={filterStatus}
+            onChange={(e) => { setFilterStatus(e.target.value); reset(); }}
+            className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]"
+            aria-label="Filter by status"
+          >
             <option value="">Status</option>
             <option>In Stock</option>
             <option>Low Stock</option>
@@ -225,14 +313,28 @@ export const Inventory = () => {
           <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDown /></div>
         </div>
 
+        {/* Expiry Date */}
         <div className="relative">
-          <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); reset(); }} className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]" aria-label="Filter by category">
-            <option value="">Category</option>
-            {categories.map((c) => <option key={c}>{c}</option>)}
+          <select
+            value={filterExpiry}
+            onChange={(e) => { setFilterExpiry(e.target.value); reset(); }}
+            className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-400 outline-none cursor-pointer focus:border-[#00808d]"
+            aria-label="Filter by expiry"
+          >
+            <option value="">Expiry Date</option>
+            <option>Jan 2026</option>
+            <option>Mar 2026</option>
+            <option>Sep 2026</option>
+            <option>Feb 2027</option>
+            <option>Dec 2027</option>
           </select>
           <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDown /></div>
         </div>
 
+        {/* Category multi-select */}
+        <CategoryDropdown categories={categories} selected={filterCategories} onChange={(v) => { setFilterCategories(v); reset(); }} />
+
+        {/* Only expired toggle */}
         <label className="flex items-center gap-2 cursor-pointer ml-1">
           <span style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>Only expired</span>
           <button
@@ -255,57 +357,96 @@ export const Inventory = () => {
         </label>
       </div>
 
+      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr>{['Medication Name', 'SKU / Barcode', 'Batch / Lot Number', 'Expiry Date', 'Current Stock', 'Category', 'Supplier', 'Status'].map((h) => <th key={h} className={thCls}>{h}</th>)}</tr>
+              <tr>
+                <th className={thCls}>Medication Name</th>
+                <th className={thCls}>SKU / Barcode</th>
+                <th className={thCls}>Batch / Lot Number</th>
+                <th className={thCls}>
+                  Expiry Date
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline',marginLeft:3,verticalAlign:'middle' }}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                </th>
+                <th className={thCls}>Current Stock</th>
+                <th className={thCls}>Category</th>
+                <th className={thCls}>Supplier</th>
+                <th className={thCls}>Status</th>
+              </tr>
             </thead>
             <tbody>
-              {!slice.length ? (
+              {slice.length === 0 ? (
                 <tr><td colSpan={8} className="py-14 text-center text-sm text-gray-400">No medications found.</td></tr>
-              ) : slice.map((med, idx) => (
-                <tr
-                  key={med.routeId || med.id || idx}
-                  onClick={() => navigate(`/inventory/${encodeURIComponent(med.routeId || med.id)}`, { state: { medication: med } })}
-                  className={`transition-colors hover:bg-[#f0fafa] cursor-pointer ${idx ? 'border-t border-gray-100' : ''}`}
-                >
-                  <td className="py-3 px-4 text-sm font-medium text-gray-800 whitespace-nowrap">{med.medicationName}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.sku}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.batchLotNumber}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.expiryDate ? new Date(med.expiryDate).toLocaleDateString() : '—'}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{med.currentStock}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{med.category}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{med.supplierName}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{med.status}</td>
-                </tr>
-              ))}
+              ) : (
+                slice.map((med, idx) => (
+                  <tr
+                    key={med.routeId || med.id || med._id || idx}
+                    onClick={() => {
+                      const targetId = med.routeId || med._id || med.id || '';
+                      if (!targetId) {
+                        console.warn('Medication row missing route id:', med);
+                        return;
+                      }
+                      navigate(`/inventory/${encodeURIComponent(targetId)}`, { state: { medication: med } });
+                    }}
+                    className={`transition-colors hover:bg-[#f0fafa] cursor-pointer ${idx > 0 ? 'border-t border-gray-100' : ''}`}
+                  >
+                    <td className="py-3 px-4 text-sm font-medium text-gray-800 whitespace-nowrap">{med.medicationName}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.sku}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.batchLotNumber}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">
+                      {(() => {
+                        if (!med.expiryDate) return '—';
+                        const d = new Date(med.expiryDate);
+                        return isNaN(d.getTime())
+                          ? String(med.expiryDate)
+                          : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+                      })()}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{med.currentStock?.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{med.category}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{med.supplierName}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{med.status}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        <Pagination page={safePage} totalPages={totalPages} onChange={(p) => setPage(p)} />
       </div>
 
+      {/* Add Medication slide-in */}
       <AddMedicationModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onBulkSave={async (file) => {
           try {
             const r = await medicationService.bulkImport(file);
-            const items = (r?.data?.items || []).map(normalizeMedication);
-            if (items.length) setMedications((p) => [...items, ...p]);
+            const items = r?.data?.items || [];
+            if (items.length) setMedications((p) => [...items.map(normalizeMedication), ...p]);
           } catch {}
         }}
         onBarcodeSave={async (photoFile, barcode, format) => {
           try {
             const r = await medicationService.uploadBarcode(photoFile, barcode, format);
+            const photoUrl = r?.data?.photoUrl || '';
+            const code = r?.data?.barcode || barcode || '';
             setModalOpen(false);
             navigate('/inventory/add', {
-              state: { prefill: { sku: r?.data?.barcode || barcode || '', barcodeData: r?.data?.barcode || barcode || '', photoUrl: r?.data?.photoUrl || '' } }
+              state: {
+                prefill: {
+                  sku: code,
+                  barcodeData: code,
+                  photoUrl,
+                },
+              },
             });
           } catch {}
         }}
       />
     </DashboardLayout>
   );
-}
+};
