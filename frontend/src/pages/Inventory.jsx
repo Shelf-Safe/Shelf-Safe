@@ -148,13 +148,13 @@ export const Inventory = () => {
   const { useDummy } = useDataSource();
 
   const [medications, setMedications] = useState(DUMMY_MEDICATIONS);
-  const [search, setSearch]           = useState('');
+  const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterExpiry, setFilterExpiry] = useState('');
   const [filterCategories, setFilterCategories] = useState([]);
   const [onlyExpired, setOnlyExpired] = useState(false);
-  const [page, setPage]               = useState(1);
-  const [modalOpen, setModalOpen]     = useState(false);
+  const [page, setPage] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Normalize API records (Mongo uses _id and Date strings)
   const normalizeMedication = (m) => {
@@ -254,14 +254,14 @@ export const Inventory = () => {
     const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
     const matchStatus = !filterStatus || m.status === filterStatus;
     const matchExpiry = !filterExpiry || m.expiryDate === filterExpiry;
-    const matchCat    = filterCategories.length === 0 || filterCategories.includes(m.category);
+    const matchCat = filterCategories.length === 0 || filterCategories.includes(m.category);
     const matchExpiredOnly = !onlyExpired || m.status === 'Expiring Soon';
     return matchSearch && matchStatus && matchExpiry && matchCat && matchExpiredOnly;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const safePage   = Math.min(page, totalPages);
-  const slice      = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const safePage = Math.min(page, totalPages);
+  const slice = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   const reset = () => setPage(1);
 
@@ -368,7 +368,7 @@ export const Inventory = () => {
                 <th className={thCls}>Batch / Lot Number</th>
                 <th className={thCls}>
                   Expiry Date
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline',marginLeft:3,verticalAlign:'middle' }}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', marginLeft: 3, verticalAlign: 'middle' }}><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg>
                 </th>
                 <th className={thCls}>Current Stock</th>
                 <th className={thCls}>Category</th>
@@ -424,10 +424,21 @@ export const Inventory = () => {
         onClose={() => setModalOpen(false)}
         onBulkSave={async (file) => {
           try {
+            // Send to backend
             const r = await medicationService.bulkImport(file);
             const items = r?.data?.items || [];
-            if (items.length) setMedications((p) => [...items.map(normalizeMedication), ...p]);
-          } catch {}
+
+            if (items.length) {
+              // Update the UI table with the new items
+              setMedications((p) => [...items.map(normalizeMedication), ...p]);
+              alert(`Success! Imported ${items.length} medications.`);
+            }
+            // Close the modal on success
+            setModalOpen(false);
+          } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message || 'Failed to import. Check your Excel file.');
+          }
         }}
         onBarcodeSave={async (photoFile, barcode, format) => {
           try {
@@ -444,7 +455,10 @@ export const Inventory = () => {
                 },
               },
             });
-          } catch {}
+          } catch (error) {
+            console.error(error);
+            alert('Failed to scan barcode.');
+          }
         }}
       />
     </DashboardLayout>
