@@ -176,32 +176,79 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
     setStream(null);
   };
 
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], 'barcode.jpg', { type: 'image/jpeg' });
+      setBarcodePhoto({ file, url: URL.createObjectURL(blob) });
+      stopCamera();
+    }, 'image/jpeg', 0.8);
+  };
+
   return (
     <div>
       <h3 className="text-xl font-bold text-gray-900 mb-1">Scan a barcode</h3>
       <p className="text-sm text-gray-500 mb-6">Scan a medication barcode using your device camera.</p>
 
       <div className="flex justify-center mb-4">
-        <button
-          type="button"
-          onClick={startCamera}
-          className="px-8 py-3 rounded-xl text-white font-semibold text-base"
-          style={{ backgroundColor: '#00808d' }}
-        >
-          Enable camera
-        </button>
+        {!stream && !barcodePhoto && (
+          <button
+            type="button"
+            onClick={startCamera}
+            className="px-8 py-3 rounded-xl text-white font-semibold text-base"
+            style={{ backgroundColor: '#00808d' }}
+          >
+            Enable camera
+          </button>
+        )}
+        {stream && !barcodePhoto && (
+          <button
+            type="button"
+            onClick={capturePhoto}
+            className="px-8 py-3 rounded-xl text-white font-semibold text-base"
+            style={{ backgroundColor: '#00808d' }}
+          >
+            Capture Photo
+          </button>
+        )}
+        {barcodePhoto && (
+          <button
+            type="button"
+            onClick={() => { setBarcodePhoto(null); startCamera(); }}
+            className="px-8 py-3 rounded-xl text-white font-semibold text-base"
+            style={{ backgroundColor: '#00808d' }}
+          >
+            Retake Photo
+          </button>
+        )}
       </div>
 
+      {!barcodePhoto && (
+        <video
+          ref={videoRef}
+          className="w-full rounded-xl border border-gray-200"
+          style={{ maxHeight: 260, display: stream ? 'block' : 'none' }}
+          playsInline
+          muted
+        />
+      )}
       
-      <video
-        ref={videoRef}
-        className="w-full rounded-xl border border-gray-200"
-        style={{ maxHeight: 260 }}
-        playsInline
-        muted
-      />
+      {barcodePhoto && (
+        <img
+          src={barcodePhoto.url}
+          alt="Captured barcode"
+          className="w-full rounded-xl border border-gray-200 object-contain"
+          style={{ maxHeight: 260 }}
+        />
+      )}
 
-      {stream && (
+      {stream && !barcodePhoto && (
         <div className="flex justify-center mt-3">
           <button type="button" onClick={stopCamera} style={btnOutline}>
             Stop camera
