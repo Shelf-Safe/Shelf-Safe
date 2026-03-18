@@ -3,6 +3,8 @@ import { verifyToken } from '../middleware/auth.js';
 import Medication from '../models/Medication.js';
 import PosConnection from '../models/PosConnection.js';
 import { evaluateInventoryNotifications } from '../utils/notificationHelper.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
@@ -115,6 +117,38 @@ async function getInventoryStatsForOrg(orgId) {
   return evaluateInventoryNotifications(medications);
 }
 
+async function sendInventoryAlert({ user, stats }) {
+  const { expiredCount, expiringSoonCount, thresholdCrossed } = stats;
+
+  if (!user?.email) return;
+
+  //  Critical alert
+  if (thresholdCrossed) {
+    await sendEmail({
+      to: user.email,
+      subject: '🚨 ShelfSafe Alert: High Expired Inventory',
+      html: `
+        <h2>Critical Inventory Alert</h2>
+        <p>You now have <strong>${expiredCount}</strong> expired items in your inventory.</p>
+        <p>Please take action immediately.</p>
+      `,
+    });
+  }
+
+  //  Warning alert
+  else if (expiringSoonCount > 0) {
+    await sendEmail({
+      to: user.email,
+      subject: '⚠️ ShelfSafe: Items Expiring Soon',
+      html: `
+        <h2>Upcoming Expiry Alert</h2>
+        <p>You have <strong>${expiringSoonCount}</strong> items expiring within 30 days.</p>
+      `,
+    });
+  }
+}
+
+
 
 
 
@@ -212,6 +246,16 @@ router.post('/connect', verifyToken, async (req, res) => {
     const notificationStats = await getInventoryStatsForOrg(orgId);
     const thresholdCrossed =
       previousStats.expiredCount < 25 && notificationStats.expiredCount >= 25;
+
+
+    const user = await User.findById(req.user.userId);
+    await sendInventoryAlert({
+      user,
+      stats: {
+        ...notificationStats,
+        thresholdCrossed,
+      },
+    });
 
     res.json({
       success: true,
@@ -312,6 +356,15 @@ router.post('/sync', verifyToken, async (req, res) => {
     const notificationStats = await getInventoryStatsForOrg(orgId);
     const thresholdCrossed =
       previousStats.expiredCount < 25 && notificationStats.expiredCount >= 25;
+
+    const user = await User.findById(req.user.userId);
+    await sendInventoryAlert({
+      user,
+      stats: {
+        ...notificationStats,
+        thresholdCrossed,
+      },
+    });
 
     res.json({
       success: true,
