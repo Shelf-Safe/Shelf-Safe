@@ -1,5 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
 function XIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -36,6 +39,8 @@ function TrashIcon({ color = '#ef4444' }) {
     </svg>
   );
 }
+
+// ─── Shared button styles ─────────────────────────────────────────────────────
 const btnBase = {
   padding: '11px 24px', borderRadius: '8px', fontSize: '15px',
   fontWeight: '600', cursor: 'pointer', transition: 'opacity 0.15s',
@@ -49,6 +54,8 @@ const btnTeal = {
 const btnTealDisabled = {
   ...btnTeal, background: '#d1d5db', color: '#9ca3af', cursor: 'not-allowed',
 };
+
+// ─── Method Picker Step ───────────────────────────────────────────────────────
 function MethodPicker({ method, setMethod }) {
   const options = [
     {
@@ -81,7 +88,7 @@ function MethodPicker({ method, setMethod }) {
             className="flex items-start gap-3 cursor-pointer"
             onClick={() => setMethod(o.id)}
           >
-            
+            {/* Radio circle */}
             <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
               style={{ borderColor: method === o.id ? '#00808d' : '#d1d5db' }}>
               {method === o.id && (
@@ -98,6 +105,8 @@ function MethodPicker({ method, setMethod }) {
     </div>
   );
 }
+
+// ─── Bulk Import Step ─────────────────────────────────────────────────────────
 function BulkImport({ file, setFile }) {
   const inputRef = useRef(null);
 
@@ -118,7 +127,7 @@ function BulkImport({ file, setFile }) {
       <h3 className="text-xl font-bold text-gray-900 mb-1">Import in bulk</h3>
       <p className="text-sm text-gray-500 mb-5">Upload a Excel file to add multiple medications at once.</p>
 
-      
+      {/* Upload zone */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -129,7 +138,7 @@ function BulkImport({ file, setFile }) {
       </button>
       <input ref={inputRef} type="file" accept=".xls,.xlsx,.csv" className="hidden" onChange={handleFileChange} />
 
-      
+      {/* Attached file */}
       {file && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white">
           <div className="flex-shrink-0 text-gray-400">
@@ -151,9 +160,14 @@ function BulkImport({ file, setFile }) {
     </div>
   );
 }
+
+// ─── Barcode Scan Step ────────────────────────────────────────────────────────
 function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const [stream, setStream] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
 
   const startCamera = async () => {
     try {
@@ -176,6 +190,56 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
     setStream(null);
   };
 
+  const captureFrameToFile = async () => {
+    if (!videoRef.current) return null;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const w = video.videoWidth || 1280;
+    const h = video.videoHeight || 720;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) return resolve(null);
+        const file = new File([blob], `barcode-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        resolve(file);
+      }, 'image/jpeg', 0.9);
+    });
+  };
+
+  const scanOnce = async () => {
+    setScanError('');
+    if (!videoRef.current) return;
+    setScanning(true);
+    try {
+      const reader = new BrowserMultiFormatReader();
+      const result = await reader.decodeOnceFromVideoElement(videoRef.current);
+      const barcode = result?.getText?.() || '';
+      const file = await captureFrameToFile();
+      if (file) {
+        setBarcodePhoto({ file, previewUrl: URL.createObjectURL(file), barcode, format: result?.getBarcodeFormat?.() ? String(result.getBarcodeFormat()) : '' });
+      } else {
+        setBarcodePhoto({ file: null, previewUrl: '', barcode, format: result?.getBarcodeFormat?.() ? String(result.getBarcodeFormat()) : '' });
+      }
+      stopCamera();
+    } catch (e) {
+      setScanError('Could not detect a barcode. Try again with better lighting or move closer.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleFileFallback = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setScanError('');
+    setBarcodePhoto({ file: f, previewUrl: URL.createObjectURL(f), barcode: '', format: '' });
+    e.target.value = '';
+  };
+
   return (
     <div>
       <h3 className="text-xl font-bold text-gray-900 mb-1">Scan a barcode</h3>
@@ -192,7 +256,7 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
         </button>
       </div>
 
-      
+      {/* Camera preview */}
       <video
         ref={videoRef}
         className="w-full rounded-xl border border-gray-200"
@@ -201,11 +265,41 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
         muted
       />
 
+      <canvas ref={canvasRef} className="hidden" />
+
+      {scanError && (
+        <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 text-red-700 text-sm border border-red-100">
+          {scanError}
+        </div>
+      )}
+
       {stream && (
-        <div className="flex justify-center mt-3">
+        <div className="flex items-center justify-between gap-3 mt-3">
           <button type="button" onClick={stopCamera} style={btnOutline}>
             Stop camera
           </button>
+          <button
+            type="button"
+            onClick={scanOnce}
+            disabled={scanning}
+            className="px-6 py-2.5 rounded-xl text-white font-semibold text-sm disabled:opacity-60"
+            style={{ backgroundColor: '#00808d' }}
+          >
+            {scanning ? 'Scanning...' : 'Scan now'}
+          </button>
+        </div>
+      )}
+
+      {!stream && (
+        <div className="mt-4">
+          <label className="text-xs text-gray-500">Or upload a barcode photo</label>
+          <input type="file" accept="image/*" className="mt-2 block w-full text-sm" onChange={handleFileFallback} />
+        </div>
+      )}
+
+      {barcodePhoto?.previewUrl && (
+        <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden">
+          <img src={barcodePhoto.previewUrl} alt="Barcode preview" className="w-full" />
         </div>
       )}
 
@@ -224,6 +318,15 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
   );
 }
 
+// ─── Main AddMedicationModal ──────────────────────────────────────────────────
+/**
+ * Props:
+ *  isOpen: boolean
+ *  onClose: () => void
+ *  onBulkSave: (file: File) => Promise<void>
+ *  onBarcodeSave: (photo: File) => Promise<void>
+ *  isMobile: boolean  — renders as bottom-sheet instead of side panel
+ */
 export const AddMedicationModal = ({
   isOpen,
   onClose,
@@ -233,7 +336,7 @@ export const AddMedicationModal = ({
 }) => {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState('picker'); 
+  const [step, setStep] = useState('picker'); // 'picker' | 'bulk' | 'barcode'
   const [method, setMethod] = useState('bulk');
   const [file, setFile] = useState(null);
   const [barcodePhoto, setBarcodePhoto] = useState(null);
@@ -257,7 +360,7 @@ export const AddMedicationModal = ({
       handleClose();
       navigate('/inventory/add');
     } else {
-      setStep(method);
+      setStep(method); // 'bulk' | 'barcode'
     }
   };
 
@@ -273,7 +376,7 @@ export const AddMedicationModal = ({
       if (step === 'bulk' && file && onBulkSave) {
         await onBulkSave(file);
       } else if (step === 'barcode' && barcodePhoto && onBarcodeSave) {
-        await onBarcodeSave(barcodePhoto.file);
+        await onBarcodeSave(barcodePhoto.file, barcodePhoto.barcode || '', barcodePhoto.format || '', barcodePhoto.previewUrl || '');
       }
     } finally {
       setSaving(false);
@@ -282,31 +385,33 @@ export const AddMedicationModal = ({
   };
 
   if (!isOpen) return null;
+
+  // Panel wrapper — side panel on desktop, full overlay on mobile
   const panelStyle = isMobile
     ? {
-        position: 'fixed', inset: 0, zIndex: 200,
-        display: 'flex', alignItems: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.45)',
-      }
+      position: 'fixed', inset: 0, zIndex: 200,
+      display: 'flex', alignItems: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    }
     : {
-        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 200,
-        width: '100%', maxWidth: '400px',
-        backgroundColor: '#fff', boxShadow: '-4px 0 40px rgba(0,0,0,0.12)',
-        display: 'flex', flexDirection: 'column',
-      };
+      position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 200,
+      width: '100%', maxWidth: '400px',
+      backgroundColor: '#fff', boxShadow: '-4px 0 40px rgba(0,0,0,0.12)',
+      display: 'flex', flexDirection: 'column',
+    };
 
   const innerStyle = isMobile
     ? {
-        background: '#fff', borderRadius: '20px 20px 0 0',
-        width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-      }
+      background: '#fff', borderRadius: '20px 20px 0 0',
+      width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+    }
     : {
-        flex: 1, display: 'flex', flexDirection: 'column', height: '100%',
-      };
+      flex: 1, display: 'flex', flexDirection: 'column', height: '100%',
+    };
 
   return (
     <>
-      
+      {/* Desktop backdrop — only covers content area, sidebar stays visible */}
       {!isMobile && (
         <div
           onClick={handleClose}
@@ -319,7 +424,7 @@ export const AddMedicationModal = ({
 
       <div style={panelStyle} onClick={isMobile ? (e) => { if (e.target === e.currentTarget) handleClose(); } : undefined}>
         <div style={innerStyle}>
-          
+          {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
             {step !== 'picker' ? (
               <button
@@ -344,7 +449,7 @@ export const AddMedicationModal = ({
             </button>
           </div>
 
-          
+          {/* Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {step === 'picker' && (
               <MethodPicker method={method} setMethod={setMethod} />
@@ -364,7 +469,7 @@ export const AddMedicationModal = ({
             )}
           </div>
 
-          
+          {/* Footer */}
           <div className="px-6 py-5 border-t border-gray-100 flex items-center justify-between gap-3">
             <button type="button" onClick={handleClose} style={btnOutline}>
               Cancel

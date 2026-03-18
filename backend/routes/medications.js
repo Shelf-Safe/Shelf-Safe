@@ -54,8 +54,8 @@ router.get('/', verifyToken, async (req, res) => {
       ];
     }
 
-    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50000);
-    const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limitNum;
+    const limitNum = limit === 'all' ? 50000 : Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50000);
+    const skip = limit === 'all' ? 0 : (Math.max(parseInt(page, 10) || 1, 1) - 1) * limitNum;
     const total = await Medication.countDocuments(query);
     const medications = await Medication.find(query)
       .sort({ createdAt: -1 })
@@ -196,6 +196,9 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
     }
 
     const medications = rows.map((row) => {
+      console.log("Row data:", row);
+      console.log("Photo URL:", row.photoUrl || row['Photo URL']);
+
       const expiryMonth = String(row['Expiry Month'] || row['expiryMonth'] || '');
       const expiryYear = String(row['Expiry Year'] || row['expiryYear'] || '');
       const expiryDate = buildExpiryDate(expiryMonth, expiryYear);
@@ -207,6 +210,13 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
       if (currentStock === 0) status = 'Out of Stock';
       else if (currentStock <= 10) status = 'Low Stock';
       else if (expiryDate && expiryDate <= thirtyDaysOut) status = 'Expiring Soon';
+
+      let photoUrl = "";
+      if (row.photoUrl) {
+        photoUrl = String(row.photoUrl).trim();
+      } else if (row['Photo URL']) {
+        photoUrl = String(row['Photo URL']).trim();
+      }
 
       return {
         medicationName: String(row['Medication Name'] || row['medicationName'] || '').trim(),
@@ -223,12 +233,15 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
         supplierContact: String(row['Supplier Contact'] || row['supplierContact'] || '').trim(),
         status: String(row['Status'] || status).trim(),
         category: String(row['Category'] || row['category'] || '').trim(),
+        photoUrl: photoUrl,
         addedBy: req.user.userId,
       orgId: req.user.orgId || 'dummy01',
     };
   });
 
-  res.status(200).json({ success: true, count: medications.length });
+  const insertedItems = await Medication.insertMany(medications);
+
+  res.status(200).json({ success: true, count: insertedItems.length, data: insertedItems });
 
  } catch (error) {
    res.status(500).json({ success: false, message: error.message });

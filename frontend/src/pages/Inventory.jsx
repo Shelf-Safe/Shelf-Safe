@@ -426,7 +426,7 @@ export const Inventory = () => {
           try {
             // Send to backend
             const r = await medicationService.bulkImport(file);
-            const items = r?.data?.items || [];
+            const items = Array.isArray(r?.data) ? r.data : (r?.data?.items || []);
 
             if (items.length) {
               // Update the UI table with the new items
