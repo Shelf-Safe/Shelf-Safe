@@ -161,8 +161,9 @@
 .dash-header-buttons .btn,
 .dash-header-buttons a.btn {
     padding: 8px 20px;
-    font-size: 14px;
-    border-radius: 8px
+    font-size: 16px;
+    border-radius: 8px;
+    
 }
 
 .dash-header-sync {
@@ -244,7 +245,15 @@
     background: #fef2f2;
     border-color: #fecaca;
 }
+.dash-header-buttons .btn-outline{
+    border-color: #00808d !important;
+    color: #00808d;
+}
 
+.dash-header-buttons .btn-primary{
+    font-weight: 600;
+
+}
 .dash-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
