@@ -56,7 +56,7 @@ function NavContent({ onClose, mobileActiveClass, iconSize, iconAlwaysTeal }) {
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5">
+      <div className="px-5 pb-5">
         <img src={logoBig} alt="ShelfSafe" className="w-auto select-none" style={{ height: '67px' }} draggable={false} />
       </div>
 
