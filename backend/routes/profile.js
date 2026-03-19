@@ -144,17 +144,89 @@ router.put('/', verifyToken, async (req, res) => {
       updateFields.password = await bcryptjs.hash(password.trim(), 10);
     }
 
+
+    const activityEntries = [];
+    const activityTimestamp = new Date();
+
+    if (name !== undefined) {
+      activityEntries.push({
+        action: 'Updated full name',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (phone !== undefined) {
+      activityEntries.push({
+        action: 'Updated phone number',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (employeeId !== undefined) {
+      activityEntries.push({
+        action: 'Updated employee ID',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (userRole !== undefined) {
+      activityEntries.push({
+        action: 'Updated user role',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (pharmacyOrganization !== undefined) {
+      activityEntries.push({
+        action: 'Updated pharmacy organization',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (password !== undefined && password.trim() !== '') {
+      activityEntries.push({
+        action: 'Changed password',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (notifications !== undefined) {
+      activityEntries.push({
+        action: notifications?.email
+          ? 'Enabled email notifications'
+          : 'Disabled email notifications',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (twoFactorEnabled !== undefined) {
+      activityEntries.push({
+        action: twoFactorEnabled
+          ? 'Enabled two-factor authentication'
+          : 'Disabled two-factor authentication',
+        timestamp: activityTimestamp,
+      });
+    }
+
+
+
+
+
+    const updateOperation = {
+      $set: updateFields,
+    };
+
+    if (activityEntries.length > 0) {
+      updateOperation.$push = {
+        recentActivity: {
+          $each: activityEntries,
+        },
+      };
+    }
+
     const updateResult = await User.updateOne(
       { _id: req.user.userId },
-      {
-        $set: updateFields,
-        $push: {
-          recentActivity: {
-            action: 'Updated profile details',
-            timestamp: new Date(),
-          },
-        },
-      }
+      updateOperation
     );
 
     if (updateResult.matchedCount === 0) {
