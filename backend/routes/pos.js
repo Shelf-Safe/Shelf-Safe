@@ -249,13 +249,18 @@ router.post('/connect', verifyToken, async (req, res) => {
 
 
     const user = await User.findById(req.user.userId);
-    await sendInventoryAlert({
-      user,
-      stats: {
-        ...notificationStats,
-        thresholdCrossed,
-      },
-    });
+
+    try {
+      await sendInventoryAlert({
+        user,
+        stats: {
+          ...notificationStats,
+          thresholdCrossed,
+        },
+      });
+    } catch (emailError) {
+      console.error('Inventory alert email failed:', emailError.message);
+    }
 
     res.json({
       success: true,
@@ -358,13 +363,18 @@ router.post('/sync', verifyToken, async (req, res) => {
       previousStats.expiredCount < 25 && notificationStats.expiredCount >= 25;
 
     const user = await User.findById(req.user.userId);
-    await sendInventoryAlert({
-      user,
-      stats: {
-        ...notificationStats,
-        thresholdCrossed,
-      },
-    });
+
+    try {
+      await sendInventoryAlert({
+        user,
+        stats: {
+          ...notificationStats,
+          thresholdCrossed,
+        },
+      });
+    } catch (emailError) {
+      console.error('Inventory alert email failed:', emailError.message);
+    }
 
     res.json({
       success: true,
