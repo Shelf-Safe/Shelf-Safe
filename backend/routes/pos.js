@@ -19,7 +19,7 @@ const providers = [
   { key: 'propel', name: 'Propel OS', logoUrl: '/pos-logos/PropelOS.png' },
 ];
 
-const POS_API_BASE_URL = process.env.POS_API_BASE_URL || 'http://localhost:4010';
+const POS_API_BASE_URL = process.env.POS_API_BASE_URL || ' https://shelfsafe-pos.vercel.app' || 'http://localhost:4010';
 
 async function posRequest(endpoint, options = {}) {
   const response = await fetch(`${POS_API_BASE_URL}${endpoint}`, options);
