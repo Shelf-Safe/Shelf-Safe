@@ -953,12 +953,16 @@
     min-height: 360px;
   }
   .dash-chart-inner {
-    flex-direction: column;
+    flex-direction: row;
     align-items: stretch;
   }
   .dash-chart-donut-wrap {
     align-self: center;
     width: min(56vw, 220px);
+  }
+  .dash-chart-legend-line1 {
+    font-size: 10px;
+    white-space: normal;
   }
 }
 
