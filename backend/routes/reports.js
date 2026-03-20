@@ -9,6 +9,7 @@ import Medication from '../models/Medication.js';
 import Report from '../models/Report.js';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 
 const router = express.Router();
@@ -596,5 +597,83 @@ router.delete('/:id', verifyToken, async (req, res) => {
 //         res.status(500).json({ success: false, message: error.message });
 //     }
 // });
+
+
+// export report file functionality through nodemailer -Dalbir
+
+// POST /api/reports/:id/share
+router.post('/:id/share', verifyToken, async (req, res) => {
+  try {
+    const { recipientEmail } = req.body || {};
+
+    if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      return res.status(400).json({ success: false, message: 'A valid recipientEmail is required.' });
+    }
+
+    const scope = req.user.orgId ? { orgId: req.user.orgId } : { generatedBy: req.user.userId };
+    const report = await Report.findOne({ _id: req.params.id, ...scope }).lean();
+
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found.' });
+    }
+
+    const sender = await getCurrentUser(req);
+    const fileExtension = report.format === 'PDF' ? 'pdf' : 'csv';
+    const attachmentName = `${safeFileName(report.reportType)}_report.${fileExtension}`;
+
+    let attachments;
+
+    if (process.env.VERCEL) {
+      const response = await fetch(report.fileUrl);
+      if (!response.ok) {
+        return res.status(502).json({ success: false, message: 'Could not fetch the report file for attachment.' });
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      attachments = [{
+        filename: attachmentName,
+        content: Buffer.from(arrayBuffer),
+        contentType: report.mimeType,
+      }];
+    } else {
+      const REPORTS_DIR_LOCAL = path.resolve(process.cwd(), 'uploads', 'reports');
+      const filePath = path.join(REPORTS_DIR_LOCAL, report.fileName);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, message: 'Report file not found on disk.' });
+      }
+      attachments = [{
+        filename: attachmentName,
+        path: filePath,
+        contentType: report.mimeType,
+      }];
+    }
+
+    await sendEmail({
+      to: recipientEmail,
+      subject: `ShelfSafe Report: ${report.reportType}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#00808d;">ShelfSafe Report</h2>
+          <p>Hi,</p>
+          <p><strong>${sender?.name || sender?.email || 'A team member'}</strong> has shared a <strong>${report.reportType}</strong> report with you.</p>
+          <table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:14px;">
+            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Report Type</td><td style="padding:6px 12px;">${report.reportType}</td></tr>
+            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Format</td><td style="padding:6px 12px;">${report.format}</td></tr>
+            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Records</td><td style="padding:6px 12px;">${report.recordCount ?? 'N/A'}</td></tr>
+            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Generated</td><td style="padding:6px 12px;">${new Date(report.createdAt).toLocaleString()}</td></tr>
+          </table>
+          <p>The report is attached to this email as <strong>${attachmentName}</strong>.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+          <p style="font-size:12px;color:#888;">This email was sent from ShelfSafe. Please do not reply.</p>
+        </div>
+      `,
+      attachments,
+    });
+
+    res.json({ success: true, message: `Report sent to ${recipientEmail}` });
+  } catch (error) {
+    console.error('Report Share Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 export default router;
