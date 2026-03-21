@@ -249,13 +249,19 @@ export const Inventory = () => {
   }, [medications]);
 
   // Filter
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const filtered = medications.filter((m) => {
     const q = search.toLowerCase();
     const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
     const matchStatus = !filterStatus || m.status === filterStatus;
     const matchExpiry = !filterExpiry || m.expiryDate === filterExpiry;
     const matchCat = filterCategories.length === 0 || filterCategories.includes(m.category);
-    const matchExpiredOnly = !onlyExpired || m.status === 'Expiring Soon';
+    
+    const isExpired = m.status === 'Expired' || (m.expiryDate && new Date(m.expiryDate) < today);
+    const matchExpiredOnly = !onlyExpired || isExpired;
+    
     return matchSearch && matchStatus && matchExpiry && matchCat && matchExpiredOnly;
   });
 
