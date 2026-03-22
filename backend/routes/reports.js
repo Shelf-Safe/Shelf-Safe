@@ -9,7 +9,6 @@ import Medication from '../models/Medication.js';
 import Report from '../models/Report.js';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
-import { sendEmail } from '../utils/sendEmail.js';
 
 const router = express.Router();
 const LOCAL_REPORTS_DIR = path.resolve(process.cwd(), 'uploads', 'reports');
@@ -19,12 +18,10 @@ function parseDateRange(dateFilter = '') {
     const to = new Date(now);
     const lower = String(dateFilter || '').toLowerCase();
     let from = null;
-
     const setFromDays = (days) => {
         from = new Date(now);
         from.setDate(from.getDate() - days);
     };
-
     if (!lower || lower === 'all' || lower === 'all time') return { from: null, to };
     if (lower.includes('30')) setFromDays(30);
     else if (lower.includes('60')) setFromDays(60);
@@ -38,224 +35,212 @@ function parseDateRange(dateFilter = '') {
 function safeFileName(name) {
     return String(name).replace(/[^a-z0-9\-_\.]/gi, '_');
 }
-
 function formatDate(d) {
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function day(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+function daysUntil(expiryDate) {
+    return Math.ceil((day(expiryDate) - day(new Date())) / 86400000);
+}
+
+function deriveStatus(m) {
+    const today = day(new Date());
+    const soon = new Date(today);
+    soon.setDate(soon.getDate() + 30);
+    const exp = m.expiryDate ? day(m.expiryDate) : null;
+    if (m.status === 'Removed' || m.status === 'Recalled') return m.status;
+    if (exp && exp < today) return 'Expired';
+    if (exp && exp <= soon) return 'Expiring Soon';
+    const stock = Number(m.currentStock || 0);
+    if (stock <= 0) return 'Out of Stock';
+    if (stock <= 10) return 'Low Stock';
+    return 'In Stock';
 }
 
 async function getCurrentUser(req) {
     return User.findById(req.user.userId).select('name email orgId').lean();
 }
-
 async function getScope(req) {
     const currentUser = await getCurrentUser(req);
     const orgId = req.user.orgId || currentUser?.orgId || 'dummy01';
     return { orgId, userId: req.user.userId, currentUser };
 }
-
 function buildMedicationScope(scope) {
-    if (scope.orgId) {
-        return { $or: [{ orgId: scope.orgId }, { addedBy: scope.userId }] };
-    }
-    return { addedBy: scope.userId };
+    return scope.orgId ? { $or: [{ orgId: scope.orgId }, { addedBy: scope.userId }] } : { addedBy: scope.userId };
+}
+function buildReportScope(scope) {
+    return scope.orgId ? { $or: [{ orgId: scope.orgId }, { generatedBy: scope.userId }] } : { generatedBy: scope.userId };
 }
 
-function buildReportScope(scope) {
-    if (scope.orgId) {
-        return { $or: [{ orgId: scope.orgId }, { generatedBy: scope.userId }] };
-    }
-    return { generatedBy: scope.userId };
+function matchesSearch(m, search) {
+    if (!search) return true;
+    const q = String(search).trim().toLowerCase();
+    return [m.medicationName, m.brandName, m.sku, m.batchLotNumber, m.category, m.supplierName]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+}
+
+function applyCommonFilters(rows, filters = {}) {
+    const category = String(filters.category || '').trim();
+    const status = String(filters.status || '').trim();
+    const search = String(filters.search || '').trim();
+    return rows.filter((m) => {
+        const derived = deriveStatus(m);
+        const statusOk = !status || status === 'All' || derived === status;
+        const categoryOk = !category || category === 'All' || m.category === category;
+        return statusOk && categoryOk && matchesSearch(m, search);
+    });
+}
+
+async function fetchScopedMedications(scope) {
+    const rows = await Medication.find(buildMedicationScope(scope)).lean();
+    return rows.map((m) => ({ ...m, derivedStatus: deriveStatus(m), daysUntilExpiry: m.expiryDate ? daysUntil(m.expiryDate) : null }));
 }
 
 async function buildReportData({ scope, reportType, reportSubType, filters }) {
-    const now = new Date();
-    const search = String(filters.search || '').trim();
-    const category = String(filters.category || '').trim();
-    const status = String(filters.status || '').trim();
-    const q = { ...buildMedicationScope(scope) };
-
-    if (search) {
-        q.$and = q.$and || [];
-        q.$and.push({
-            $or: [
-                { medicationName: { $regex: search, $options: 'i' } },
-                { brandName: { $regex: search, $options: 'i' } },
-                { sku: { $regex: search, $options: 'i' } },
-                { batchLotNumber: { $regex: search, $options: 'i' } },
-            ],
-        });
-    }
-
-    if (category && category !== 'All') q.category = category;
-    if (status && status !== 'All') q.status = status;
-
-    const { from, to } = parseDateRange(filters.dateFilter);
-    const applyCreatedAtFilter = from && !['Expiry Reports', 'Stock Reports', 'Compliance & Safety Reports', 'Usage & Trends'].includes(reportType);
-    if (applyCreatedAtFilter) q.createdAt = { $gte: from, $lte: to };
+    const now = day(new Date());
+    let rows = applyCommonFilters(await fetchScopedMedications(scope), filters);
 
     if (reportType === 'Expiry Reports') {
-        const expirySubtype = reportSubType || 'expired_only';
-        if (expirySubtype === 'expired_only') {
-            q.$and = q.$and || [];
-            q.$and.push({ $or: [{ status: 'Expired' }, { expiryDate: { $lt: now } }] });
-        } else if (expirySubtype === 'expiring_soon') {
-            const windowDays = Number(filters.expiryWindowDays || 30);
-            const until = new Date(now);
-            until.setDate(until.getDate() + (Number.isFinite(windowDays) ? windowDays : 30));
-            q.expiryDate = { $ne: null, $gte: now, $lte: until };
-            q.status = { $nin: ['Removed', 'Expired'] };
-        } else {
-            q.expiryDate = { $ne: null };
-            q.status = { $nin: ['Removed'] };
-        }
-
-        const rows = await Medication.find(q).sort({ expiryDate: 1, medicationName: 1 }).lean();
+        const subtype = reportSubType || 'expired_only';
+        if (subtype === 'expired_only') rows = rows.filter((m) => m.derivedStatus === 'Expired');
+        else if (subtype === 'expiring_soon')
+            rows = rows.filter(
+                (m) =>
+                    m.expiryDate &&
+                    m.daysUntilExpiry !== null &&
+                    m.daysUntilExpiry >= 0 &&
+                    m.daysUntilExpiry <= Number(filters.expiryWindowDays || 30),
+            );
+        else rows = rows.filter((m) => !!m.expiryDate);
+        rows.sort(
+            (a, b) =>
+                new Date(a.expiryDate || '9999-12-31') - new Date(b.expiryDate || '9999-12-31') ||
+                String(a.medicationName).localeCompare(String(b.medicationName)),
+        );
         return { kind: 'table', rows };
     }
 
     if (reportType === 'Stock Reports') {
-        q.$and = q.$and || [];
-        q.$and.push({
-            $or: [{ expiryDate: null }, { expiryDate: { $gte: new Date() } }],
-        });
-        const stockSubtype = reportSubType || 'stock_risk';
-        if (stockSubtype === 'out_of_stock') {
-            q.$and = q.$and || [];
-            q.$and.push({ $or: [{ status: 'Out of Stock' }, { currentStock: { $lte: 0 } }] });
-        } else if (stockSubtype === 'low_stock') {
-            q.$and = q.$and || [];
-            q.$and.push({ $or: [{ status: 'Low Stock' }, { currentStock: { $gt: 0, $lte: 10 } }] });
-        } else if (stockSubtype === 'restock_priority') {
-            q.$and = q.$and || [];
-            q.$and.push({ $or: [{ status: { $in: ['Low Stock', 'Out of Stock'] } }, { currentStock: { $lte: 10 } }] });
-        } else {
-            q.$and = q.$and || [];
-            q.$and.push({ $or: [{ status: 'Low Stock' }, { status: 'Out of Stock' }, { currentStock: { $lte: 10 } }] });
-        }
-
-        const rows = await Medication.find(q).sort({ currentStock: 1, medicationName: 1 }).lean();
+        const subtype = reportSubType || 'stock_risk';
+        rows = rows.filter((m) => m.derivedStatus !== 'Expired' && m.derivedStatus !== 'Removed' && m.derivedStatus !== 'Recalled');
+        if (subtype === 'out_of_stock') rows = rows.filter((m) => Number(m.currentStock || 0) <= 0);
+        else if (subtype === 'low_stock') rows = rows.filter((m) => Number(m.currentStock || 0) > 0 && Number(m.currentStock || 0) <= 10);
+        else rows = rows.filter((m) => Number(m.currentStock || 0) <= 10);
+        rows.sort(
+            (a, b) => Number(a.currentStock || 0) - Number(b.currentStock || 0) || String(a.medicationName).localeCompare(String(b.medicationName)),
+        );
         return { kind: 'table', rows };
     }
 
     if (reportType === 'Compliance & Safety Reports') {
-        const complianceSubtype = reportSubType || 'non_compliant_items';
-        q.$and = q.$and || [];
-        if (complianceSubtype === 'removed_expired_audit') {
-            q.$and.push({ $or: [{ status: 'Removed' }, { status: 'Expired' }, { expiryDate: { $lt: now } }] });
-        } else if (complianceSubtype === 'recalled_and_expired') {
-            q.$and.push({ $or: [{ status: 'Expired' }, { status: 'Recalled' }, { expiryDate: { $lt: now } }] });
-        } else {
-            q.$and.push({
-                $or: [
-                    { status: 'Expired' },
-                    { status: 'Recalled' },
-                    { status: 'Removed' },
-                    { status: 'Expiring Soon' },
-                    { expiryDate: { $lt: now } },
-                ],
-            });
-        }
-
-        const rows = await Medication.find(q).sort({ status: 1, expiryDate: 1, medicationName: 1 }).lean();
+        const subtype = reportSubType || 'non_compliant_items';
+        if (subtype === 'removed_expired_audit') rows = rows.filter((m) => ['Removed', 'Expired'].includes(m.derivedStatus));
+        else if (subtype === 'recalled_and_expired') rows = rows.filter((m) => ['Recalled', 'Expired'].includes(m.derivedStatus));
+        else
+            rows = rows.filter(
+                (m) =>
+                    ['Expired', 'Recalled', 'Removed'].includes(m.derivedStatus) ||
+                    (m.expiryDate && m.daysUntilExpiry >= 0 && m.daysUntilExpiry <= 30),
+            );
+        rows.sort(
+            (a, b) =>
+                String(a.derivedStatus).localeCompare(String(b.derivedStatus)) ||
+                new Date(a.expiryDate || '9999-12-31') - new Date(b.expiryDate || '9999-12-31'),
+        );
         return { kind: 'table', rows };
     }
 
     if (reportType === 'Usage & Trends') {
-        const trendRangeDays = Number(filters.trendWindowDays || 365);
-        const fromD = new Date(now);
-        fromD.setDate(fromD.getDate() - (Number.isFinite(trendRangeDays) ? trendRangeDays : 365));
+        const rangeDays = Number(filters.trendWindowDays || 365);
+        const from = new Date(now);
+        from.setDate(from.getDate() - rangeDays);
+        const expiredRows = rows.filter((m) => m.expiryDate && day(m.expiryDate) >= from && m.derivedStatus === 'Expired');
 
-        const scopedMatch = { ...buildMedicationScope(scope) };
-        if (category && category !== 'All') scopedMatch.category = category;
+        const periodMap = new Map();
+        expiredRows.forEach((m) => {
+            const d = new Date(m.expiryDate);
+            const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const prior = periodMap.get(period) || { period, itemsExpired: 0, unitsExpired: 0 };
+            prior.itemsExpired += 1;
+            prior.unitsExpired += Number(m.currentStock || 0);
+            periodMap.set(period, prior);
+        });
 
-        const expiredMatch = {
-            ...scopedMatch,
-            expiryDate: { $ne: null, $gte: fromD, $lte: now },
-            $or: [{ status: 'Expired' }, { expiryDate: { $lt: now } }],
+        const expiredCountMap = new Map();
+        expiredRows.forEach((m) => expiredCountMap.set(m.medicationName, (expiredCountMap.get(m.medicationName) || 0) + 1));
+
+        const statusMap = new Map();
+        rows.forEach((m) => {
+            const key = m.derivedStatus;
+            const prior = statusMap.get(key) || { status: key, itemCount: 0, totalUnits: 0 };
+            prior.itemCount += 1;
+            prior.totalUnits += Number(m.currentStock || 0);
+            statusMap.set(key, prior);
+        });
+
+        const categoryMap = new Map();
+        expiredRows.forEach((m) => {
+            const key = m.category || 'Uncategorized';
+            const prior = categoryMap.get(key) || { category: key, itemsExpired: 0 };
+            prior.itemsExpired += 1;
+            categoryMap.set(key, prior);
+        });
+
+        return {
+            kind: 'summary',
+            expiredWasteOverTime: Array.from(periodMap.values()).sort((a, b) => a.period.localeCompare(b.period)),
+            mostExpiredItems: Array.from(expiredCountMap.entries())
+                .map(([medicationName, timesExpired]) => ({ medicationName, timesExpired }))
+                .sort((a, b) => b.timesExpired - a.timesExpired || a.medicationName.localeCompare(b.medicationName))
+                .slice(0, 15),
+            inventoryStatusMix: Array.from(statusMap.values()).sort((a, b) => b.itemCount - a.itemCount || a.status.localeCompare(b.status)),
+            categoryWaste: Array.from(categoryMap.values())
+                .sort((a, b) => b.itemsExpired - a.itemsExpired || a.category.localeCompare(b.category))
+                .slice(0, 10),
         };
-        const statusMatch = { ...scopedMatch };
-
-        const [expiredWasteOverTime, mostExpiredItems, inventoryStatusMix, categoryWaste] = await Promise.all([
-            Medication.aggregate([
-                { $match: expiredMatch },
-                {
-                    $group: {
-                        _id: { y: { $year: '$expiryDate' }, m: { $month: '$expiryDate' } },
-                        itemsExpired: { $sum: 1 },
-                        unitsExpired: { $sum: '$currentStock' },
-                    },
-                },
-                { $sort: { '_id.y': 1, '_id.m': 1 } },
-                {
-                    $project: {
-                        _id: 0,
-                        period: {
-                            $concat: [
-                                { $toString: '$_id.y' },
-                                '-',
-                                { $cond: [{ $lte: ['$_id.m', 9] }, { $concat: ['0', { $toString: '$_id.m' }] }, { $toString: '$_id.m' }] },
-                            ],
-                        },
-                        itemsExpired: 1,
-                        unitsExpired: 1,
-                    },
-                },
-            ]),
-            Medication.aggregate([
-                { $match: expiredMatch },
-                { $group: { _id: '$medicationName', timesExpired: { $sum: 1 } } },
-                { $sort: { timesExpired: -1, _id: 1 } },
-                { $limit: 15 },
-                { $project: { _id: 0, medicationName: '$_id', timesExpired: 1 } },
-            ]),
-            Medication.aggregate([
-                { $match: statusMatch },
-                { $group: { _id: '$status', itemCount: { $sum: 1 }, totalUnits: { $sum: '$currentStock' } } },
-                { $sort: { itemCount: -1, _id: 1 } },
-                { $project: { _id: 0, status: '$_id', itemCount: 1, totalUnits: 1 } },
-            ]),
-            Medication.aggregate([
-                { $match: expiredMatch },
-                { $group: { _id: '$category', itemsExpired: { $sum: 1 } } },
-                { $sort: { itemsExpired: -1, _id: 1 } },
-                { $limit: 10 },
-                { $project: { _id: 0, category: '$_id', itemsExpired: 1 } },
-            ]),
-        ]);
-
-        return { kind: 'summary', expiredWasteOverTime, mostExpiredItems, inventoryStatusMix, categoryWaste };
     }
 
-    const rows = await Medication.find(q).sort({ createdAt: -1 }).limit(500).lean();
     return { kind: 'table', rows };
 }
 
-function normalizeRowsForExport(reportType, data) {
-    if (data.kind === 'table') {
-        return data.rows.map((r) => ({
-            medicationName: r.medicationName,
-            brandName: r.brandName,
-            category: r.category,
-            sku: r.sku,
-            batchLotNumber: r.batchLotNumber,
-            risk: r.risk,
-            shelfId: r.shelfId,
-            expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : '',
-            currentStock: r.currentStock,
-            status: r.status,
-            supplierName: r.supplierName,
-        }));
-    }
+function normalizeRowsForExport(data) {
+    return data.rows.map((r) => ({
+        medicationName: r.medicationName,
+        brandName: r.brandName,
+        category: r.category,
+        sku: r.sku,
+        batchLotNumber: r.batchLotNumber,
+        risk: r.risk,
+        shelfId: r.shelfId,
+        expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : '',
+        currentStock: r.currentStock,
+        status: r.derivedStatus || r.status,
+        supplierName: r.supplierName,
+    }));
+}
 
-    return [
-        {
-            reportType,
-            expiredWasteOverTime: JSON.stringify(data.expiredWasteOverTime || []),
-            mostExpiredItems: JSON.stringify(data.mostExpiredItems || []),
-            inventoryStatusMix: JSON.stringify(data.inventoryStatusMix || []),
-            categoryWaste: JSON.stringify(data.categoryWaste || []),
-        },
-    ];
+function drawHeader(doc, title, meta) {
+    doc.rect(40, 32, 515, 52).fill('#0f766e');
+    doc.fillColor('white').fontSize(22).text(title, 55, 48);
+    doc.fillColor('#111827');
+    let y = 100;
+    Object.entries(meta || {}).forEach(([k, v]) => {
+        doc.font('Helvetica-Bold').fontSize(10).text(`${k}:`, 50, y, { continued: true });
+        doc.font('Helvetica').text(` ${v || '-'}`);
+        y += 14;
+    });
+    return y + 8;
+}
+
+function ensurePage(doc, y, needed = 20) {
+    if (y + needed <= 760) return y;
+    doc.addPage();
+    return 50;
 }
 
 function generatePdfBuffer({ title, meta, rows, summary }) {
@@ -265,24 +250,41 @@ function generatePdfBuffer({ title, meta, rows, summary }) {
         doc.on('data', (chunk) => buffers.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-        doc.fontSize(18).text(title, { bold: true });
-        doc.moveDown(0.5);
-        doc.fontSize(10).fillColor('#555');
-        Object.entries(meta || {}).forEach(([k, v]) => doc.text(`${k}: ${v}`));
-        doc.fillColor('#000').moveDown();
+        let y = drawHeader(doc, title, meta);
 
         if (rows && rows.length) {
-            doc.fontSize(12).text('Results');
-            doc.moveDown(0.5);
+            doc.font('Helvetica-Bold').fontSize(13).fillColor('#111827').text('Results', 50, y);
+            y += 22;
+            const headers = [
+                ['Medication', 50, 130],
+                ['Category', 190, 80],
+                ['Expiry', 275, 70],
+                ['Stock', 350, 45],
+                ['Status', 400, 90],
+            ];
+            const drawTableHeader = () => {
+                doc.rect(50, y, 500, 20).fill('#e6fffb');
+                doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(9);
+                headers.forEach(([label, x]) => doc.text(label, x, y + 6));
+                y += 24;
+            };
+            drawTableHeader();
+            doc.font('Helvetica').fontSize(9);
             rows.slice(0, 500).forEach((r, idx) => {
-                doc.fontSize(10).text(
-                    `${idx + 1}. ${r.medicationName || ''} | ${r.brandName || ''} | ${r.category || ''} | Stock: ${r.currentStock ?? ''} | Exp: ${r.expiryDate || ''} | ${r.status || ''}`,
-                );
+                y = ensurePage(doc, y, 26);
+                if (y === 50) drawTableHeader();
+                if (idx % 2 === 0) doc.rect(50, y - 2, 500, 22).fill('#f9fafb');
+                doc.fillColor('#111827');
+                doc.text(String(r.medicationName || ''), 50, y, { width: 130, ellipsis: true });
+                doc.text(String(r.category || ''), 190, y, { width: 80, ellipsis: true });
+                doc.text(r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : '-', 275, y, { width: 70 });
+                doc.text(String(r.currentStock ?? '-'), 350, y, { width: 45 });
+                doc.text(String(r.status || r.derivedStatus || ''), 400, y, { width: 90, ellipsis: true });
+                y += 22;
             });
             if (rows.length > 500) {
-                doc.moveDown(0.5);
-                doc.fontSize(9).fillColor('#777').text(`(Showing first 500 rows. Total: ${rows.length})`);
-                doc.fillColor('#000');
+                y += 6;
+                doc.fontSize(9).fillColor('#6b7280').text(`Showing first 500 rows. Total rows: ${rows.length}`, 50, y);
             }
         }
 
@@ -293,23 +295,34 @@ function generatePdfBuffer({ title, meta, rows, summary }) {
                 ['Inventory status mix', summary.inventoryStatusMix || []],
                 ['Category waste hotspots', summary.categoryWaste || []],
             ];
-
-            doc.moveDown();
-            doc.fontSize(12).text('Summary');
+            y = ensurePage(doc, y + 24, 50);
+            doc.font('Helvetica-Bold').fontSize(13).fillColor('#111827').text('Summary', 50, y);
+            y += 24;
             sections.forEach(([label, items]) => {
-                doc.moveDown(0.5);
-                doc.fontSize(10).text(`${label}:`);
-                if (!items || items.length === 0) {
-                    doc.fontSize(9).fillColor('#666').text('No data available');
-                    doc.fillColor('#000');
+                y = ensurePage(doc, y, 40);
+                doc.font('Helvetica-Bold').fontSize(11).text(label, 50, y);
+                y += 16;
+                if (!items.length) {
+                    doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text('No data available', 50, y);
+                    y += 18;
                     return;
                 }
-                items.forEach((item, index) => {
-                    const parts = Object.entries(item)
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join(' | ');
-                    doc.fontSize(9).text(`${index + 1}. ${parts}`);
+                items.forEach((item) => {
+                    y = ensurePage(doc, y, 16);
+                    doc.font('Helvetica')
+                        .fontSize(9)
+                        .fillColor('#111827')
+                        .text(
+                            Object.entries(item)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join('   |   '),
+                            60,
+                            y,
+                            { width: 470 },
+                        );
+                    y += 14;
                 });
+                y += 10;
             });
         }
 
@@ -320,7 +333,6 @@ function generatePdfBuffer({ title, meta, rows, summary }) {
 function getLocalPublicOrigin(req) {
     const explicit = process.env.SERVER_PUBLIC_ORIGIN || process.env.APP_BASE_URL || process.env.BACKEND_PUBLIC_URL;
     if (explicit) return String(explicit).replace(/\/$/, '');
-
     const protoHeader = req.headers['x-forwarded-proto'];
     const hostHeader = req.headers['x-forwarded-host'] || req.get('host');
     const proto = protoHeader ? String(protoHeader).split(',')[0].trim() : req.protocol || 'http';
@@ -330,13 +342,10 @@ function getLocalPublicOrigin(req) {
 
 async function saveReportFile(req, fileName, contentType, buffer) {
     if (process.env.VERCEL) {
-        if (!process.env.BLOB_READ_WRITE_TOKEN) {
-            throw new Error('Missing BLOB_READ_WRITE_TOKEN for Vercel report uploads');
-        }
+        if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error('Missing BLOB_READ_WRITE_TOKEN for Vercel report uploads');
         const blob = await put(fileName, buffer, { access: 'public', contentType });
         return blob.url;
     }
-
     const filePath = path.join(LOCAL_REPORTS_DIR, fileName);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, buffer);
@@ -351,24 +360,24 @@ router.post('/generate', verifyToken, async (req, res) => {
 
         const scope = await getScope(req);
         const data = await buildReportData({ scope, reportType, reportSubType, filters });
-        const exportRows = normalizeRowsForExport(reportType, data);
+        const exportRows = data.kind === 'table' ? normalizeRowsForExport(data) : [];
         const ts = Date.now();
-        const folderPath = 'reportsGenerated';
-        const fileName = `${folderPath}/${safeFileName(reportType)}_${ts}.${format === 'PDF' ? 'pdf' : 'csv'}`;
+        const fileName = `reportsGenerated/${safeFileName(reportType)}_${ts}.${format === 'PDF' ? 'pdf' : 'csv'}`;
         const contentType = format === 'PDF' ? 'application/pdf' : 'text/csv';
 
         let fileBuffer;
         if (format === 'CSV') {
             const parser = new Json2CsvParser({ withBOM: true });
-            fileBuffer = Buffer.from(parser.parse(exportRows), 'utf-8');
+            fileBuffer = Buffer.from(parser.parse(data.kind === 'table' ? exportRows : [data]), 'utf-8');
         } else {
             fileBuffer = await generatePdfBuffer({
                 title: `ShelfSafe — ${reportType}`,
                 meta: {
                     Created: new Date().toISOString(),
                     'Report Type': reportType,
-                    'Report Subtype': reportSubType || 'default',
+                    'Report Focus': reportSubType || 'default',
                     'Generated By': scope.currentUser?.email || 'Unknown',
+                    Rows: data.kind === 'table' ? exportRows.length : '-',
                 },
                 rows: data.kind === 'table' ? exportRows : null,
                 summary: data.kind === 'summary' ? data : null,
@@ -386,7 +395,7 @@ router.post('/generate', verifyToken, async (req, res) => {
             fileUrl: publicUrl,
             fileName,
             mimeType: contentType,
-            recordCount: data.kind === 'table' ? data.rows.length : exportRows.length,
+            recordCount: data.kind === 'table' ? exportRows.length : 1,
         });
 
         res.status(201).json({
@@ -415,10 +424,8 @@ router.get('/', verifyToken, async (req, res) => {
         const { q = '', dateFilter = 'Last 60 days', reportType = '', format = '' } = req.query;
         const scope = await getScope(req);
         const filter = { ...buildReportScope(scope) };
-
         if (reportType && reportType !== 'All') filter.reportType = reportType;
         if (format && format !== 'All Formats' && format !== 'All') filter.format = format;
-
         const { from, to } = parseDateRange(dateFilter);
         if (from) filter.createdAt = { $gte: from, $lte: to };
 
@@ -428,7 +435,6 @@ router.get('/', verifyToken, async (req, res) => {
             .select('name email')
             .lean();
         const byId = new Map(users.map((u) => [String(u._id), u]));
-
         reports = reports.map((r) => {
             const u = byId.get(String(r.generatedBy));
             return {
@@ -444,16 +450,13 @@ router.get('/', verifyToken, async (req, res) => {
                 rowCount: r.recordCount,
             };
         });
-
         const term = String(q || '')
             .trim()
             .toLowerCase();
-        if (term) {
+        if (term)
             reports = reports.filter((r) =>
                 [r.type, r.subType, r.createdBy, r.author, r.format].filter(Boolean).some((v) => String(v).toLowerCase().includes(term)),
             );
-        }
-
         res.json({ success: true, data: reports });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -476,7 +479,6 @@ router.delete('/:id', verifyToken, async (req, res) => {
         const scope = await getScope(req);
         const report = await Report.findOneAndDelete({ _id: req.params.id, ...buildReportScope(scope) });
         if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
-
         if (process.env.VERCEL && report.fileUrl) {
             try {
                 await del(report.fileUrl);
@@ -487,111 +489,10 @@ router.delete('/:id', verifyToken, async (req, res) => {
             const filePath = path.join(LOCAL_REPORTS_DIR, report.fileName);
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         }
-
         res.json({ success: true, message: 'Report deleted successfully' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-});
-
-//origin jeff
-// DELETE /api/reports/:id
-// router.delete('/:id', verifyToken, async (req, res) => {
-//     try {
-//         const scope = req.user.orgId ? { orgId: req.user.orgId } : { generatedBy: req.user.userId };
-//         const report = await Report.findOneAndDelete({ _id: req.params.id, ...scope });
-
-//         if (!report) {
-//             return res.status(404).json({ success: false, message: 'Report not found' });
-//         }
-
-//         try {
-//             const filePath = path.join(REPORTS_DIR, report.fileName);
-//             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-//         } catch (_) {}
-
-//         res.json({ success: true, message: 'Report deleted' });
-//     } catch (error) {
-//         res.status(500).json({ success: false, message: error.message });
-//     }
-// });
-
-
-// export report file functionality through nodemailer -Dalbir
-
-// POST /api/reports/:id/share
-router.post('/:id/share', verifyToken, async (req, res) => {
-  try {
-    const { recipientEmail } = req.body || {};
-
-    if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
-      return res.status(400).json({ success: false, message: 'A valid recipientEmail is required.' });
-    }
-
-    const scope = req.user.orgId ? { orgId: req.user.orgId } : { generatedBy: req.user.userId };
-    const report = await Report.findOne({ _id: req.params.id, ...scope }).lean();
-
-    if (!report) {
-      return res.status(404).json({ success: false, message: 'Report not found.' });
-    }
-
-    const sender = await getCurrentUser(req);
-    const fileExtension = report.format === 'PDF' ? 'pdf' : 'csv';
-    const attachmentName = `${safeFileName(report.reportType)}_report.${fileExtension}`;
-
-    let attachments;
-
-    if (process.env.VERCEL) {
-      const response = await fetch(report.fileUrl);
-      if (!response.ok) {
-        return res.status(502).json({ success: false, message: 'Could not fetch the report file for attachment.' });
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      attachments = [{
-        filename: attachmentName,
-        content: Buffer.from(arrayBuffer),
-        contentType: report.mimeType,
-      }];
-    } else {
-      const REPORTS_DIR_LOCAL = path.resolve(process.cwd(), 'uploads', 'reports');
-      const filePath = path.join(REPORTS_DIR_LOCAL, report.fileName);
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ success: false, message: 'Report file not found on disk.' });
-      }
-      attachments = [{
-        filename: attachmentName,
-        path: filePath,
-        contentType: report.mimeType,
-      }];
-    }
-
-    await sendEmail({
-      to: recipientEmail,
-      subject: `ShelfSafe Report: ${report.reportType}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
-          <h2 style="color:#00808d;">ShelfSafe Report</h2>
-          <p>Hi,</p>
-          <p><strong>${sender?.name || sender?.email || 'A team member'}</strong> has shared a <strong>${report.reportType}</strong> report with you.</p>
-          <table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:14px;">
-            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Report Type</td><td style="padding:6px 12px;">${report.reportType}</td></tr>
-            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Format</td><td style="padding:6px 12px;">${report.format}</td></tr>
-            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Records</td><td style="padding:6px 12px;">${report.recordCount ?? 'N/A'}</td></tr>
-            <tr><td style="padding:6px 12px;background:#f4f4f4;font-weight:600;">Generated</td><td style="padding:6px 12px;">${new Date(report.createdAt).toLocaleString()}</td></tr>
-          </table>
-          <p>The report is attached to this email as <strong>${attachmentName}</strong>.</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-          <p style="font-size:12px;color:#888;">This email was sent from ShelfSafe. Please do not reply.</p>
-        </div>
-      `,
-      attachments,
-    });
-
-    res.json({ success: true, message: `Report sent to ${recipientEmail}` });
-  } catch (error) {
-    console.error('Report Share Error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
 });
 
 export default router;
