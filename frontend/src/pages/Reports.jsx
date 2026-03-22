@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { API_ORIGIN } from '../config/api';
 
 // ─── UserChip ─────────────────────────────────────────────────────────────────
 function UserChip({ user }) {
@@ -82,10 +83,72 @@ const REPORT_TYPES = [
 
 const FORMATS = ['PDF', 'CSV'];
 
+const REPORT_SUBTYPES = {
+  'Expiry Reports': [
+    { value: 'expired_only', label: 'Expired only' },
+    { value: 'expiring_soon', label: 'Expiring soon (next 30 days)' },
+    { value: 'all_expiry_items', label: 'All items with expiry dates' },
+  ],
+  'Stock Reports': [
+    { value: 'stock_risk', label: 'Stock risk overview' },
+    { value: 'low_stock', label: 'Low stock only' },
+    { value: 'out_of_stock', label: 'Out of stock only' },
+    { value: 'restock_priority', label: 'Restock priority list' },
+  ],
+  'Compliance & Safety Reports': [
+    { value: 'non_compliant_items', label: 'Non-compliant items' },
+    { value: 'removed_expired_audit', label: 'Removed / expired audit' },
+    { value: 'recalled_and_expired', label: 'Recalled + expired items' },
+  ],
+  'Usage & Trends': [
+    { value: 'waste_trend_summary', label: 'Waste trend summary' },
+    { value: 'most_expired_items', label: 'Most frequently expired items' },
+  ],
+};
+
+const DEFAULT_REPORT_SUBTYPE = {
+  'Expiry Reports': 'expired_only',
+  'Stock Reports': 'stock_risk',
+  'Compliance & Safety Reports': 'non_compliant_items',
+  'Usage & Trends': 'waste_trend_summary',
+};
+
 const DATE_FILTERS = ['Last 30 days', 'Last 60 days', 'Last 90 days', 'Last 6 months', 'Last year'];
 const FORMAT_FILTERS = ['All Formats', 'PDF', 'CSV'];
 
-const API_BASE = import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:5003';
+const API_BASE = API_ORIGIN;
+
+const normalizeReportUrl = (fileUrl) => {
+  if (!fileUrl) return '';
+  return /^https?:\/\//i.test(fileUrl) ? fileUrl : `${API_ORIGIN}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+};
+
+const openReportUrl = (fileUrl) => {
+  const normalizedUrl = normalizeReportUrl(fileUrl);
+  if (!normalizedUrl) return;
+  window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+};
+
+const copyReportUrl = async (fileUrl) => {
+  const normalizedUrl = normalizeReportUrl(fileUrl);
+  if (!normalizedUrl) return;
+  try {
+    await navigator.clipboard.writeText(normalizedUrl);
+    alert('Link copied to clipboard!');
+  } catch (_) {}
+};
+
+const buildEmailShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
+  const normalizedUrl = normalizeReportUrl(fileUrl);
+  const subject = encodeURIComponent(`${reportTitle} from ShelfSafe`);
+  const body = encodeURIComponent(`Hi,%0D%0A%0D%0AHere is the report link:%0D%0A${normalizedUrl}`);
+  return `mailto:?subject=${subject}&body=${body}`;
+};
+
+const buildWhatsAppShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
+  const normalizedUrl = normalizeReportUrl(fileUrl);
+  return `https://wa.me/?text=${encodeURIComponent(`${reportTitle} - ${normalizedUrl}`)}`;
+};
 
 const INFO_CARDS = [
   {
@@ -189,9 +252,11 @@ function Dropdown({ value, onChange, options, placeholder = 'All', className = '
 // ─── Generate Reports Panel ─────────────────���─────────────────────────────────
 function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
   const [reportType, setReportType] = useState(initialType);
+  const [reportSubType, setReportSubType] = useState(initialType ? DEFAULT_REPORT_SUBTYPE[initialType] || '' : '');
   const [format, setFormat]         = useState('');
   const [typeOpen, setTypeOpen]     = useState(false);
   const typeRef = useRef(null);
+  const subtypeOptions = reportType ? REPORT_SUBTYPES[reportType] || [] : [];
 
   useEffect(() => {
     const handler = (e) => { if (typeRef.current && !typeRef.current.contains(e.target)) setTypeOpen(false); };
@@ -199,7 +264,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const canGenerate = reportType && format;
+  const canGenerate = reportType && format && (!subtypeOptions.length || reportSubType);
 
   return (
     <>
@@ -249,7 +314,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
                     <button
                       key={t}
                       type="button"
-                      onClick={() => { setReportType(t); setTypeOpen(false); }}
+                      onClick={() => { setReportType(t); setReportSubType(DEFAULT_REPORT_SUBTYPE[t] || ''); setTypeOpen(false); }}
                       className={`w-full text-left px-4 py-3 text-sm transition-colors hover:bg-gray-50 ${reportType === t ? 'text-[#00808d] font-semibold bg-[#f0fdfc]' : 'text-gray-700'}`}
                     >
                       {t}
@@ -259,6 +324,25 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
               )}
             </div>
           </div>
+
+
+          {subtypeOptions.length ? (
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-800">
+                Report Focus
+              </label>
+              <Dropdown
+                value={(subtypeOptions.find((item) => item.value === reportSubType) || {}).label || ''}
+                onChange={(label) => {
+                  const match = subtypeOptions.find((item) => item.label === label);
+                  setReportSubType(match ? match.value : '');
+                }}
+                options={subtypeOptions.map((item) => item.label)}
+                placeholder="Choose report focus"
+                className="w-full"
+              />
+            </div>
+          ) : null}
 
           {/* Report Format */}
           <div>
@@ -300,7 +384,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
           </button>
           <button
             type="button"
-            onClick={() => canGenerate && onGenerate({ type: reportType, format })}
+            onClick={() => canGenerate && onGenerate({ type: reportType, subType: reportSubType, format })}
             disabled={!canGenerate}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors ${canGenerate ? 'bg-[#00808d] hover:bg-[#006d79]' : 'bg-gray-300 cursor-not-allowed'}`}
           >
@@ -309,6 +393,85 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
         </div>
       </div>
     </>
+  );
+}
+
+
+function ShareMenu({ row }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
+  const normalizedUrl = normalizeReportUrl(row?.fileUrl);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        className="transition-opacity hover:opacity-70"
+        title="Share"
+        aria-label="Share report"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <IconShare />
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 z-50 w-48 mt-2 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg top-full">
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={() => {
+              window.open(buildEmailShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
+              setOpen(false);
+            }}
+          >
+            Share via Gmail / Email
+          </button>
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={() => {
+              window.open(buildWhatsAppShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
+              setOpen(false);
+            }}
+          >
+            Share via WhatsApp
+          </button>
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={async () => {
+              await copyReportUrl(normalizedUrl);
+              setOpen(false);
+            }}
+          >
+            Copy share link
+          </button>
+          {typeof navigator !== 'undefined' && navigator.share ? (
+            <button
+              type="button"
+              className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+              onClick={async () => {
+                try {
+                  await navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl });
+                } catch (_) {}
+                setOpen(false);
+              }}
+            >
+              More share options
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -372,7 +535,7 @@ export const Reports = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterDate, filterType, filterFormat, filterCreatedBy]);
 
-  const handleGenerate = async ({ type, format }) => {
+  const handleGenerate = async ({ type, subType, format }) => {
     try {
       setLoading(true);
       setError('');
@@ -381,10 +544,13 @@ export const Reports = () => {
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({
           reportType: type,
+          reportSubType: subType,
           format,
           filters: {
             dateFilter: filterDate,
             search,
+            expiryWindowDays: subType === 'expiring_soon' ? 30 : undefined,
+            trendWindowDays: type === 'Usage & Trends' ? 365 : undefined,
           },
         }),
       });
@@ -393,7 +559,7 @@ export const Reports = () => {
 
       setPanelOpen(false);
       await fetchReports();
-      if (json.report?.fileUrl) window.open(json.report.fileUrl, '_blank', 'noopener,noreferrer');
+      if (json.report?.fileUrl) openReportUrl(json.report.fileUrl);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -498,7 +664,7 @@ export const Reports = () => {
 
       {/* Reports table */}
       <div className="overflow-hidden bg-white border border-gray-200 rounded-xl">
-        <div className="overflow-x-auto">
+        <div className="max-h-[58vh] overflow-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-200">
@@ -542,7 +708,7 @@ export const Reports = () => {
                           className="transition-opacity hover:opacity-70"
                           title="Download"
                           aria-label="Download report"
-                          onClick={() => row.fileUrl && window.open(row.fileUrl, '_blank', 'noopener,noreferrer')}
+                          onClick={() => openReportUrl(row.fileUrl)}
                         >
                           <IconSave />
                         </button>
@@ -551,26 +717,15 @@ export const Reports = () => {
                           title="Print"
                           aria-label="Print report"
                           onClick={() => {
-                            if (!row.fileUrl) return;
-                            const w = window.open(row.fileUrl, '_blank', 'noopener,noreferrer');
+                            const normalizedUrl = normalizeReportUrl(row.fileUrl);
+                            if (!normalizedUrl) return;
+                            const w = window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
                             if (w) w.onload = () => w.print();
                           }}
                         >
                           <IconPrint />
                         </button>
-                        <button
-                          className="transition-opacity hover:opacity-70"
-                          title="Copy link"
-                          aria-label="Share report"
-                          onClick={async () => {
-                            if (!row.fileUrl) return;
-                            try {
-                              await navigator.clipboard.writeText(row.fileUrl);
-                            } catch (_) {}
-                          }}
-                        >
-                          <IconShare />
-                        </button>
+                        <ShareMenu row={row} />
                       </div>
                     </td>
                   </tr>
