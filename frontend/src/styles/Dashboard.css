@@ -1246,3 +1246,88 @@
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+.pos-modal-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 24px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.pos-modal-head--wide {
+    padding: 24px 28px;
+}
+.pos-modal-form--simple {
+    padding: 24px 44px 34px;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+}
+.pos-modal-selected-provider {
+    margin: 4px 0 18px;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+}
+.pos-modal-simple-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    max-width: 1120px;
+}
+.pos-modal-input--large {
+    padding: 16px 18px;
+    min-height: 60px;
+    border-radius: 14px;
+    font-size: 18px;
+}
+.pos-modal-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+}
+.pos-modal-cancel-btn {
+    padding: 14px 22px;
+    border-radius: 16px;
+    border: 2px solid #00808d;
+    background: #fff;
+    color: #00808d;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.pos-modal-sync-btn {
+    padding: 14px 28px;
+    border-radius: 16px;
+    border: none;
+    background: #00808d;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 208px;
+}
+.pos-modal-sync-btn:disabled {
+    opacity: .7;
+    cursor: not-allowed;
+}
+@media (max-width: 767px) {
+    .pos-modal-form--simple {
+        padding: 20px 18px 24px;
+        min-height: auto;
+    }
+    .pos-modal-simple-fields {
+        gap: 20px;
+    }
+    .pos-modal-actions {
+        justify-content: stretch;
+        flex-direction: column-reverse;
+    }
+    .pos-modal-cancel-btn,
+    .pos-modal-sync-btn {
+        width: 100%;
+        min-width: 0;
+    }
+}
