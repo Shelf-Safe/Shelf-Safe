@@ -2,7 +2,7 @@ import React from 'react';
 
 function SettingsSidebar({ menuItems, activeTab, onTabChange }) {
   return (
-    <div className="ps-sidebar w-full border-b border-[#e6e6e6] bg-white lg:w-[440px] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
+   <div className="ps-sidebar w-full border-b border-[#e6e6e6] bg-white lg:w-[440px] lg:flex-shrink-0 lg:border-b-0 lg:border-r -mx-0">
       <div className="border-b border-[#e6e6e6] px-6 py-5">
         <h1 className="text-[38px] font-black leading-none text-[#1e1e1e]">
           Settings

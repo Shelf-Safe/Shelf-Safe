@@ -12,9 +12,9 @@
   }
 
   .ps-panel {
-    padding: 0 !important;
-    background: #ffffff !important;
-  }
+  padding: 0 !important;
+  background: transparent !important;
+}
 
   .ps-account-wrap {
     padding: 0 16px 24px;

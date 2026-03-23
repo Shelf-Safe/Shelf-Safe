@@ -2,7 +2,7 @@ import React from 'react';
 import { FiMail } from 'react-icons/fi';
 
 const inputCls =
-  'w-full rounded-md border border-[#d9d9d9] bg-white px-3 py-2 text-sm text-[#1e1e1e] outline-none transition focus:border-[#00808d]';
+  'w-full rounded-xl border border-[#d9d9d9] bg-white px-4 py-3 text-sm text-[#1e1e1e] outline-none transition focus:border-[#00808d]';
 
 const Field = ({ label, children }) => (
   <div>
@@ -34,9 +34,9 @@ const PanelHeader = ({
   saveLabel = 'Save Changes',
   saving = false,
 }) => (
-  <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-    <h2 className="text-[18px] font-bold text-[#1e1e1e]">{title}</h2>
-    <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+  <div className="ps-panel-header mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+  <h2 className="text-[22px] lg:text-[18px] font-bold text-[#1e1e1e]">Security</h2>
+  <div className="flex shrink-0 items-center justify-end gap-2">
       <button
         type="button"
         onClick={onCancel}
@@ -132,17 +132,19 @@ function SecuritySection({
 
         <Messages success={resetMsg} error={resetErr} />
 
-        <button
-          type="button"
-          onClick={onSendReset}
-          disabled={resetSending || !securityData.resetContact.trim()}
-          className={`mt-5 rounded-md px-4 py-2 text-sm font-medium transition ${securityData.resetContact.trim()
-              ? 'bg-[#00808d] text-white hover:bg-[#006d77]'
-              : 'cursor-not-allowed bg-[#e6e6e6] text-[#a6a6a6]'
-            }`}
-        >
-          {resetSending ? 'Sending...' : 'Send Reset Link'}
-        </button>
+        <div className="mt-4 flex justify-center px-2">
+          <button
+            type="button"
+            onClick={onSendReset}
+            disabled={resetSending || !securityData.resetContact.trim()}
+            className={`rounded-md px-4 py-[7px] text-sm font-medium transition ${securityData.resetContact.trim()
+                ? 'bg-[#00808d] text-white hover:bg-[#006d77]'
+                : 'cursor-not-allowed bg-[#e6e6e6] text-[#a6a6a6]'
+              }`}
+          >
+            {resetSending ? 'Sending…' : 'Send Reset Link'}
+          </button>
+        </div>
       </div>
 
       <div className="mt-20 flex justify-center">
