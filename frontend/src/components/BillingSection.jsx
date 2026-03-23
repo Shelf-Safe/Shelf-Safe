@@ -8,20 +8,20 @@ const PanelHeader = ({
   saveLabel = 'Save Changes',
   saving = false,
 }) => (
-  <div className="mb-8 flex items-center justify-between">
+  <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
     <h2 className="text-[18px] font-bold text-[#1e1e1e]">{title}</h2>
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
       <button
         type="button"
         onClick={onCancel}
-        className="rounded-md border border-[#00808d] bg-white px-4 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
+        className="min-w-[92px] rounded-md border border-[#00808d] bg-white px-3 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
       >
         Cancel
       </button>
       <button
         type="button"
         onClick={onSave}
-        className="rounded-md bg-[#00808d] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
+        className="min-w-[118px] rounded-md bg-[#00808d] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
       >
         {saving ? 'Saving...' : saveLabel}
       </button>
@@ -38,7 +38,7 @@ const INVOICES = [
 function BillingSection() {
   return (
     <div>
-      <PanelHeader title="Billing" onCancel={() => {}} onSave={() => {}} />
+      <PanelHeader title="Billing" onCancel={() => { }} onSave={() => { }} />
 
       <p className="mb-3 text-sm font-bold text-[#1e1e1e]">Professional Plan</p>
       <div className="mb-6 rounded-xl border border-[#e6e6e6] bg-white p-4">
