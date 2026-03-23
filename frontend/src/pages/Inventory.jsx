@@ -186,6 +186,16 @@ export const Inventory = () => {
     if (params.get('add') === '1') setModalOpen(true);
   }, [location.search]);
 
+  const inventoryView = useMemo(() => {
+    const v = new URLSearchParams(location.search).get('view');
+    if (v === 'expiring' || v === 'expired' || v === 'high-risk' || v === 'low-stock') return v;
+    return null;
+  }, [location.search]);
+
+  useEffect(() => {
+    if (inventoryView) setPage(1);
+  }, [inventoryView]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -256,6 +266,24 @@ export const Inventory = () => {
     const matchExpiry = !filterExpiry || expLabel === filterExpiry;
     const matchCategory = filterCategories.length === 0 || filterCategories.includes(m.category);
     const matchExpired = !onlyExpired || m.status === 'Expired';
+
+    if (inventoryView === 'expiring') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const soon = new Date(today);
+      soon.setDate(soon.getDate() + 30);
+      const exp = m.expiryDate ? new Date(m.expiryDate) : null;
+      if (!exp || Number.isNaN(exp.getTime())) return false;
+      exp.setHours(0, 0, 0, 0);
+      if (exp < today || exp > soon) return false;
+    }
+    if (inventoryView === 'expired' && m.status !== 'Expired') return false;
+    if (inventoryView === 'high-risk') {
+      const r = m.risk || 'Low';
+      if (!['Medium', 'High', 'Critical'].includes(r)) return false;
+    }
+    if (inventoryView === 'low-stock' && m.status !== 'Low Stock' && m.status !== 'Out of Stock') return false;
+
     return matchSearch && matchStatus && matchExpiry && matchCategory && matchExpired;
   });
 
