@@ -268,6 +268,26 @@
     background: #FFFFFF
 }
 
+.dash-card.dash-card--action {
+    width: 100%;
+    margin: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.dash-card.dash-card--action:hover {
+    border-color: #00808d;
+    box-shadow: 0 1px 8px rgba(0, 128, 141, 0.12);
+}
+
+.dash-card.dash-card--action:focus-visible {
+    outline: 2px solid #00808d;
+    outline-offset: 2px;
+}
+
 .dash-card-label {
     font-size: 20px;
     font-weight: 300;
@@ -866,6 +886,10 @@
         justify-content: center;
         text-align: center;
         padding: 12px 8px;
+    }
+
+    .dash-card.dash-card--action {
+        text-align: center;
     }
 
     .dash-card-label-a::after {

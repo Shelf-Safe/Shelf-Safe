@@ -329,22 +329,42 @@ export const Dashboard = () => {
         </div>
 
         <div className="dash-cards">
-          <div className="dash-card">
+          <button
+            type="button"
+            className="dash-card dash-card--action"
+            onClick={() => navigate('/inventory?view=expiring')}
+            aria-label={`Expiring medications: ${expiring}. Open filtered inventory.`}
+          >
             <div className="dash-card-label"><span className="dash-card-label-a">Expiring</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expiring}</div>
-          </div>
-          <div className="dash-card">
+          </button>
+          <button
+            type="button"
+            className="dash-card dash-card--action"
+            onClick={() => navigate('/inventory?view=expired')}
+            aria-label={`Expired medications: ${expired}. Open filtered inventory.`}
+          >
             <div className="dash-card-label"><span className="dash-card-label-a">Expired</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expired}</div>
-          </div>
-          <div className="dash-card">
+          </button>
+          <button
+            type="button"
+            className="dash-card dash-card--action"
+            onClick={() => navigate('/inventory?view=high-risk')}
+            aria-label={`High-risk medications: ${highRisk}. Open filtered inventory.`}
+          >
             <div className="dash-card-label"><span className="dash-card-label-a">High-Risk</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{highRisk}</div>
-          </div>
-          <div className="dash-card">
+          </button>
+          <button
+            type="button"
+            className="dash-card dash-card--action"
+            onClick={() => navigate('/inventory?view=low-stock')}
+            aria-label={`Low stock items: ${lowStock}. Open filtered inventory.`}
+          >
             <div className="dash-card-label"><span className="dash-card-label-a">Low Stock</span><span className="dash-card-label-b">Items</span></div>
             <div className="dash-card-num">{lowStock}</div>
-          </div>
+          </button>
         </div>
 
         <div className="dash-charts">
