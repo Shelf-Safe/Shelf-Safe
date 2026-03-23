@@ -321,17 +321,18 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
 
   return (
     <div
-      className={`ps-shell rounded-xl border border-[#e6e6e6] bg-white ${showMobilePanel ? 'mobile-panel' : 'mobile-menu'
-        }`}
-    >
-      <div className="flex flex-col lg:flex-row">
+  className={`ps-shell w-full ${
+    showMobilePanel ? 'mobile-panel' : 'mobile-menu'
+  }`}
+>
+     <div className="flex flex-col lg:flex-row w-full">
         <SettingsSidebar
           menuItems={MENU_ITEMS}
           activeTab={activeTab}
           onTabChange={switchTab}
         />
 
-        <div className="ps-panel flex-1 overflow-visible bg-[#f5f5f5] px-6 py-4">
+        <div className="ps-panel flex-1 overflow-visible bg-[#f5f5f5] p-0 lg:px-8 lg:py-6 min-h-screen">
           <div className="ps-panel-inner max-w-[700px]">
 
             {activeFeedback && (
