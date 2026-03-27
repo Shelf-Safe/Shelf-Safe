@@ -614,7 +614,10 @@ export const Reports = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 mt-5 mb-8 md:grid-cols-2">
+{/* bug name fixed: side gaps for report cards only */}
+<div className="mt-5 mb-8 px-10 lg:px-16">
+  <div className="max-w-[900px] mx-auto">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {INFO_CARDS.map(({ title, Icon, bullets }) => (
           <button
             key={title}
@@ -636,6 +639,8 @@ export const Reports = () => {
             </ul>
           </button>
         ))}
+              </div>
+      </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
