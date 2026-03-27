@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -134,7 +135,6 @@ const copyReportUrl = async (fileUrl) => {
   if (!normalizedUrl) return;
   try {
     await navigator.clipboard.writeText(normalizedUrl);
-    alert('Link copied to clipboard!');
   } catch (_) {}
 };
 
@@ -268,7 +268,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
   return (
     <>
-      {/* Backdrop — only covers the content area, not the sidebar */}
       <div
         className="fixed top-0 bottom-0 right-0 z-40 hidden bg-black/30 md:block"
         style={{ left: '218px' }}
@@ -276,9 +275,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
         aria-hidden="true"
       />
 
-      {/* Panel */}
       <div className="fixed top-0 right-0 h-full w-full max-w-[480px] bg-white z-50 flex flex-col shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">Generate Reports</h2>
           <button
@@ -290,9 +287,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 px-6 py-6 space-y-6 overflow-y-auto">
-          {/* Report Type */}
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-800">
               Select a Report Type
@@ -344,7 +339,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
             </div>
           ) : null}
 
-          {/* Report Format */}
           <div>
             <p className="mb-3 text-sm font-medium text-gray-800">Report Format</p>
             <div className="space-y-3">
@@ -373,7 +367,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
           <button
             type="button"
@@ -399,15 +392,46 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
 function ShareMenu({ row }) {
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    const closeOnOutside = (e) => {
+      // bug fixed: share options click was not working after portal change
+      if (
+        ref.current &&
+        !ref.current.contains(e.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+
+    const updateMenuPosition = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      // bug fixed: share popup gets clipped in reports table
+      setMenuPosition({
+        top: rect.top - 8,
+        left: rect.right - 192,
+      });
+    };
+
+    document.addEventListener('mousedown', closeOnOutside);
+    if (open) {
+      updateMenuPosition();
+      window.addEventListener('scroll', updateMenuPosition, true);
+      window.addEventListener('resize', updateMenuPosition);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      window.removeEventListener('resize', updateMenuPosition);
+    };
+  }, [open]);
 
   const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
   const normalizedUrl = normalizeReportUrl(row?.fileUrl);
@@ -423,8 +447,12 @@ function ShareMenu({ row }) {
         <IconShare />
       </button>
 
-      {open ? (
-        <div className="absolute right-0 z-50 w-48 mt-2 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg top-full">
+      {open ? createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-48 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg"
+          style={{ top: menuPosition.top, left: menuPosition.left, transform: 'translateY(-100%)' }}
+        >
           <button
             type="button"
             className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
@@ -469,7 +497,8 @@ function ShareMenu({ row }) {
               More share options
             </button>
           ) : null}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
@@ -569,10 +598,10 @@ export const Reports = () => {
 
   return (
     <DashboardLayout pageTitle="Reports" headerRight={<UserChip user={user} />}>
-      {/* Header row: title + button same line */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>Reports</h1>
+          {/* bug fixed: reports page typography too small */}
+          <h1 style={{ fontSize: '36px', fontWeight: '700', lineHeight: 1.15, color: '#111827', margin: '0 0 6px' }}>Reports</h1>
           <p className="text-sm leading-relaxed text-gray-500">
             Generate and review reports to enhance compliance, facilitate restocking, and minimize waste.
           </p>
@@ -585,7 +614,6 @@ export const Reports = () => {
         </button>
       </div>
 
-      {/* Info Cards — 2×2 grid, each clickable to open Generate Report panel with type pre-filled */}
       <div className="grid grid-cols-1 gap-4 mt-5 mb-8 md:grid-cols-2">
         {INFO_CARDS.map(({ title, Icon, bullets }) => (
           <button
@@ -610,9 +638,7 @@ export const Reports = () => {
         ))}
       </div>
 
-      {/* Filter bar — single row: search then 4 dropdowns */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Search */}
         <div className="relative">
           <input
             type="text"
@@ -662,7 +688,6 @@ export const Reports = () => {
         <div className="mb-3 text-sm text-red-600">{error}</div>
       ) : null}
 
-      {/* Reports table */}
       <div className="overflow-hidden bg-white border border-gray-200 rounded-xl">
         <div className="max-h-[58vh] overflow-auto">
           <table className="w-full border-collapse">
@@ -736,7 +761,6 @@ export const Reports = () => {
         </div>
       </div>
 
-      {/* Generate Report Panel */}
       {panelOpen && (
         <GenerateReportPanel
           onClose={() => setPanelOpen(false)}
