@@ -337,7 +337,7 @@ export const Dashboard = () => {
                 disabled={syncing}
                 aria-busy={syncing}
               >
-                {syncing ? 'Syncing...' : posConnection ? 'Sync Inventory' : 'Connect POS & Sync'}
+                {syncing ? 'Syncing...' : posConnection ? 'Sync Inventory' : 'Connect POS'}
               </button>
             </div>
             <div className="dash-header-sync">
