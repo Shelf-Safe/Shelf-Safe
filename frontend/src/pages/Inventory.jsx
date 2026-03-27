@@ -302,7 +302,7 @@ export const Inventory = () => {
   return (
     <DashboardLayout headerRight={<UserChip user={user} />}>
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-        <h1 className="text-[52px] md:text-[56px] leading-none font-bold text-gray-900 m-0">Inventory</h1>
+        <h1 className="text-[52px] md:text-[35px] leading-none font-bold text-gray-900 m-0">Inventory</h1>
         <button onClick={() => setModalOpen(true)} className="px-6 py-3 rounded-xl text-white font-semibold text-[18px] md:text-sm bg-[#00808d] hover:opacity-90">Add Medication</button>
       </div>
 
