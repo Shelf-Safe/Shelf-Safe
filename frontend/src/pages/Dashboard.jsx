@@ -87,6 +87,7 @@ export const Dashboard = () => {
   const [showPosModal, setShowPosModal] = useState(false);
   const [lastSyncChangedItems, setLastSyncChangedItems] = useState([]);
   const [dismissedActionKeys, setDismissedActionKeys] = useState([]);
+  const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -200,6 +201,23 @@ export const Dashboard = () => {
     await loadDashboard({ silent: true });
   };
 
+  const openDeleteConfirm = (item) => {
+    setPendingDeleteItem(item);
+  };
+
+  const closeDeleteConfirm = () => {
+    setPendingDeleteItem(null);
+  };
+
+  const confirmDismissActionItem = () => {
+    if (!pendingDeleteItem) return;
+    const key = makeActionKey(pendingDeleteItem);
+    setDismissedActionKeys((prev) =>
+      prev.includes(key) ? prev : [...prev, key]
+    );
+    setPendingDeleteItem(null);
+  };
+
   const baseFiltered = search.trim()
     ? actionItems.filter((m) =>
         m.medicationName.toLowerCase().includes(search.toLowerCase()) ||
@@ -272,6 +290,40 @@ export const Dashboard = () => {
         onClose={() => setShowPosModal(false)}
         onConnected={handlePosConnected}
       />
+      {pendingDeleteItem ? (
+        <div className="dash-delete-modal-backdrop" onClick={closeDeleteConfirm}>
+          <div
+            className="dash-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dash-delete-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dash-delete-modal-head">
+              <h3 id="dash-delete-modal-title" className="dash-delete-modal-title">Delete Action Required</h3>
+              <button
+                type="button"
+                className="dash-delete-modal-close"
+                onClick={closeDeleteConfirm}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <p className="dash-delete-modal-text">
+              Are you sure you want to delete this Action Required item? This cannot be undone.
+            </p>
+            <div className="dash-delete-modal-actions">
+              <button type="button" className="dash-delete-cancel-btn" onClick={closeDeleteConfirm}>
+                Cancel
+              </button>
+              <button type="button" className="dash-delete-confirm-btn" onClick={confirmDismissActionItem}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="dash">
         <div className="dash-header">
           <h1 className="dash-title">Dashboard</h1>
@@ -461,12 +513,9 @@ export const Dashboard = () => {
                           type="button"
                           className="dash-btn-icon"
                           aria-label="Delete"
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            const key = makeActionKey(m);
-                            setDismissedActionKeys((prev) =>
-                              prev.includes(key) ? prev : [...prev, key]
-                            );
+                            openDeleteConfirm(m);
                           }}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
