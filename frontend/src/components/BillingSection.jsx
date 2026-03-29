@@ -14,14 +14,14 @@ const PanelHeader = ({
       <button
         type="button"
         onClick={onCancel}
-        className="min-w-[92px] rounded-md border border-[#00808d] bg-white px-3 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
+        className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
       >
         Cancel
       </button>
       <button
         type="button"
         onClick={onSave}
-        className="min-w-[118px] rounded-md bg-[#00808d] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
+        className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
       >
         {saving ? 'Saving...' : saveLabel}
       </button>
@@ -38,7 +38,7 @@ const INVOICES = [
 function BillingSection() {
   return (
     <div>
-      <PanelHeader title="Billing" onCancel={() => { }} onSave={() => { }} />
+      <PanelHeader title="Billing" onCancel={() => {}} onSave={() => {}} />
 
       <p className="mb-3 text-sm font-bold text-[#1e1e1e]">Professional Plan</p>
       <div className="mb-6 rounded-xl border border-[#e6e6e6] bg-white p-4">

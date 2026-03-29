@@ -7,7 +7,6 @@ import NotificationsSection from './NotificationsSection';
 import SecuritySection from './SecuritySection';
 import BillingSection from './BillingSection';
 
-
 import '../styles/ProfileSettingsMobile.css';
 import {
   FiSettings,
@@ -15,8 +14,6 @@ import {
   FiLock,
   FiDollarSign,
 } from 'react-icons/fi';
-
-
 
 const Messages = ({ success, error }) => (
   <>
@@ -74,8 +71,6 @@ const buildSecurityData = (user) => ({
   twoFactorEnabled: user?.twoFactorEnabled ?? false,
   resetContact: user?.email || user?.phone || '',
 });
-
-
 
 export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) => {
   const [activeTab, setActiveTab] = useState(initialTab || null);
@@ -321,20 +316,46 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
 
   return (
     <div
-  className={`ps-shell w-full ${
-    showMobilePanel ? 'mobile-panel' : 'mobile-menu'
-  }`}
->
-     <div className="flex flex-col lg:flex-row w-full">
+      className={`ps-shell w-full ${showMobilePanel ? 'mobile-panel' : 'mobile-menu'
+        }`}
+    >
+      <div className="flex w-full flex-col lg:flex-row">
         <SettingsSidebar
           menuItems={MENU_ITEMS}
           activeTab={activeTab}
           onTabChange={switchTab}
         />
 
-        <div className="ps-panel flex-1 overflow-visible bg-[#f5f5f5] p-0 lg:px-8 lg:py-6 min-h-screen">
-          <div className="ps-panel-inner max-w-[700px]">
+        <div className="ps-panel min-h-screen flex-1 overflow-visible bg-[#f5f5f5] px-4 pt-4 lg:px-0 lg:pl-6 lg:pr-10 lg:pt-6">
+          {activeTab === 'account' && (
+            <div className="mb-6 flex items-start justify-between gap-4 pr-2">
+              <h2 className="pt-0 text-[18px] font-bold text-[#1e1e1e] sm:pt-4">
+                Profile Details
+              </h2>
 
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleCancelProfile}
+                  className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div
+            className={`ps-panel-inner pr-0 sm:pr-8 ${activeTab === 'notifications' ? 'max-w-none pr-[8px]' : 'max-w-[700px]'
+              }`}
+          >
             {activeFeedback && (
               <Messages success={activeFeedback.msg} error={activeFeedback.err} />
             )}
@@ -343,9 +364,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
               <AccountSection
                 profileData={profileData}
                 onChange={handleProfileChange}
-                onSave={handleSaveProfile}
-                onCancel={handleCancelProfile}
-                saving={saving}
+                avatarUrl={user?.avatarUrl || user?.profileImageUrl || ''}
               />
             )}
 
