@@ -1,13 +1,13 @@
 import React from 'react';
 
 const inputCls =
-  'w-full rounded-xl border border-[#d9d9d9] bg-white px-4 py-2.5 text-sm text-[#1e1e1e] outline-none transition focus:border-[#00808d] disabled:bg-[#f5f5f5] disabled:text-[#a6a6a6]';
+  'w-full rounded-xl border border-[#d9d9d9] bg-white px-4 py-3 text-sm text-[#1e1e1e] outline-none transition focus:border-[#00808d] disabled:bg-[#f5f5f5] disabled:text-[#a6a6a6]';
 
 const Checkbox = ({ checked, onChange }) => (
   <button
     type="button"
     onClick={() => onChange(!checked)}
-    className={`flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
+    className={`mt-[2px] flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
       }`}
   >
     {checked && (
@@ -33,82 +33,84 @@ function NotificationsSection({
   saving,
 }) {
   return (
-    <div>
-      {/* ── Header ── */}
-      <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <h2 className="pl-4 lg:pl-0 text-[22px] lg:text-[18px] font-bold text-[#1e1e1e]">
+    <div className="ps-notif-wrap">
+      <div className="ps-notif-header mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h2 className="ps-notif-title text-[16px] font-bold text-[#1e1e1e] sm:text-[18px] sm:pt-1">
           Notifications Preferences
         </h2>
-        <div className="flex shrink-0 items-center justify-end gap-2 pr-1 lg:pr-0">
+
+        <div className="ps-notif-actions flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-[#00808d] bg-white px-4 py-[7px] text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
+            className="rounded-md border border-[#00808d] bg-white px-4 py-[7px] text-sm font-medium text-[#00808d] transition hover:bg-[#f5f5f5]"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onSave}
-            className="rounded-md border border-[#00808d] bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
+            className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
           >
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>
 
-      {/* ── Subtitle ── */}
-      <p className="mb-14 mt-8 text-sm text-[#4f5250]">
-        Choose how you&apos;d like to receive notifications about important updates.
+      <p className="ps-notif-subtitle mb-8 text-sm text-[#4f5250]">
+        Choose how you'd like to receive notifications about important updates.
       </p>
 
-      {/* ── Card ── */}
-      <div className="ps-notif-card rounded-2xl border border-[#e6e6e6] bg-white p-7">
-        {/* Phone row */}
-        <div className="mb-1 flex items-center gap-3">
+      <div className="w-full min-h-[330px] rounded-[20px] border border-[#ececec] bg-white px-8 py-10 pr-[8px]">
+        <div className="flex items-start gap-3">
           <Checkbox
             checked={notifications.phoneEnabled}
             onChange={(v) => onToggle('phoneEnabled', v)}
           />
-          <span className="text-[13.5px] font-bold text-[#1e1e1e]">
-            Enable Phone Notifications
-          </span>
+          <div className="flex-1">
+            <div className="mb-1 text-[13.5px] font-bold text-[#1e1e1e]">
+              Enable Phone Notifications
+            </div>
+            <p className="mb-4 text-[13px] text-[#4f5250]">
+              Get notified by SMS for critical updates.
+            </p>
+
+            <input
+              className={inputCls}
+              placeholder="Enter your phone number"
+              name="phoneNumber"
+              value={notifications.phoneNumber}
+              onChange={onChange}
+              disabled={!notifications.phoneEnabled}
+            />
+          </div>
         </div>
-        <p className="mb-3 ml-[30px] text-[13px] text-[#4f5250]">
-          Get notified by SMS for critical updates.
-        </p>
-        <input
-          className={inputCls}
-          placeholder="Enter your phone number"
-          name="phoneNumber"
-          value={notifications.phoneNumber}
-          onChange={onChange}
-          disabled={!notifications.phoneEnabled}
-        />
 
-        <hr className="my-5 border-[#e6e6e6]" />
+        <div className="my-6 border-t border-[#ececec]" />
 
-        {/* Email row */}
-        <div className="mb-1 flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <Checkbox
             checked={notifications.emailEnabled}
             onChange={(v) => onToggle('emailEnabled', v)}
           />
-          <span className="text-[13.5px] font-bold text-[#1e1e1e]">
-            Enable Email Notifications
-          </span>
+          <div className="flex-1">
+            <div className="mb-1 text-[13.5px] font-bold text-[#1e1e1e]">
+              Enable Email Notifications
+            </div>
+            <p className="mb-4 text-[13px] text-[#4f5250]">
+              Get notified by email for important updates.
+            </p>
+
+            <input
+              className={inputCls}
+              type="email"
+              name="emailAddress"
+              value={notifications.emailAddress}
+              onChange={onChange}
+              disabled={!notifications.emailEnabled}
+            />
+          </div>
         </div>
-        <p className="mb-3 ml-[30px] text-[13px] text-[#4f5250]">
-          Get notified by email for important updates.
-        </p>
-        <input
-          className={inputCls}
-          type="email"
-          name="emailAddress"
-          value={notifications.emailAddress}
-          onChange={onChange}
-          disabled={!notifications.emailEnabled}
-        />
       </div>
     </div>
   );
