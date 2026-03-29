@@ -52,7 +52,7 @@
   }
 
   .ps-account-wrap label {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .ps-notif-header {
@@ -69,13 +69,15 @@
     align-self: flex-start !important;
     margin: 0 !important;
     padding-top: 0 !important;
-    font-size: 38px !important;
+    font-size: 22px !important;
     line-height: 1.2;
   }
 
   .ps-notif-subtitle {
     width: 100%;
     text-align: left !important;
+    font-size: 14px !important;
+    line-height: 1.6;
   }
 
   .ps-notif-actions {

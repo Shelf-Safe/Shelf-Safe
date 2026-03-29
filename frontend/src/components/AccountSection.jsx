@@ -56,7 +56,7 @@ function AccountSection({ profileData, onChange, avatarUrl }) {
       </div>
 
       <div className="mt-8">
-        <p className="mb-2 text-sm font-bold text-[#1e1e1e]">Preferences</p>
+        <p className="mb-2 text-[16px] font-bold text-[#1e1e1e]">Preferences</p>
         <ul className="flex flex-col gap-1 text-sm text-[#4f5250]">
           <li>• English (Canada)</li>
           <li>• PST (UTC-08:00)</li>
