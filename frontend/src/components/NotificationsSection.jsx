@@ -7,8 +7,9 @@ const Checkbox = ({ checked, onChange }) => (
   <button
     type="button"
     onClick={() => onChange(!checked)}
-    className={`mt-[2px] flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
-      }`}
+    className={`mt-[2px] flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${
+      checked ? 'border-[#00808d] bg-[#00808d]' : 'border-[#bfbfbf] bg-white'
+    }`}
   >
     {checked && (
       <svg width="10" height="8" viewBox="0 0 12 10" fill="none">
@@ -35,7 +36,7 @@ function NotificationsSection({
   return (
     <div className="ps-notif-wrap">
       <div className="ps-notif-header mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h2 className="ps-notif-title text-[16px] font-bold text-[#1e1e1e] sm:text-[18px] sm:pt-1">
+        <h2 className="ps-notif-title text-[22px] font-bold text-[#1e1e1e] lg:text-[22px] lg:pt-1">
           Notifications Preferences
         </h2>
 
@@ -57,7 +58,7 @@ function NotificationsSection({
         </div>
       </div>
 
-      <p className="ps-notif-subtitle mb-8 text-sm text-[#4f5250]">
+      <p className="ps-notif-subtitle mb-8 text-sm leading-6 text-[#4f5250]">
         Choose how you'd like to receive notifications about important updates.
       </p>
 
@@ -68,10 +69,10 @@ function NotificationsSection({
             onChange={(v) => onToggle('phoneEnabled', v)}
           />
           <div className="flex-1">
-            <div className="mb-1 text-[13.5px] font-bold text-[#1e1e1e]">
+            <div className="mb-1 text-[16px] font-bold text-[#1e1e1e]">
               Enable Phone Notifications
             </div>
-            <p className="mb-4 text-[13px] text-[#4f5250]">
+            <p className="mb-4 text-sm leading-6 text-[#4f5250]">
               Get notified by SMS for critical updates.
             </p>
 
@@ -94,10 +95,10 @@ function NotificationsSection({
             onChange={(v) => onToggle('emailEnabled', v)}
           />
           <div className="flex-1">
-            <div className="mb-1 text-[13.5px] font-bold text-[#1e1e1e]">
+            <div className="mb-1 text-[16px] font-bold text-[#1e1e1e]">
               Enable Email Notifications
             </div>
-            <p className="mb-4 text-[13px] text-[#4f5250]">
+            <p className="mb-4 text-sm leading-6 text-[#4f5250]">
               Get notified by email for important updates.
             </p>
 

@@ -316,8 +316,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
 
   return (
     <div
-      className={`ps-shell w-full ${showMobilePanel ? 'mobile-panel' : 'mobile-menu'
-        }`}
+      className={`ps-shell w-full ${showMobilePanel ? 'mobile-panel' : 'mobile-menu'}`}
     >
       <div className="flex w-full flex-col lg:flex-row">
         <SettingsSidebar
@@ -328,8 +327,8 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
 
         <div className="ps-panel min-h-screen flex-1 overflow-visible bg-[#f5f5f5] px-4 pt-4 lg:px-0 lg:pl-6 lg:pr-10 lg:pt-6">
           {activeTab === 'account' && (
-            <div className="mb-6 flex items-start justify-between gap-4 pr-2">
-              <h2 className="pt-0 text-[18px] font-bold text-[#1e1e1e] sm:pt-4">
+            <div className="mb-6 flex flex-col gap-3 pr-2 sm:flex-row sm:items-start sm:justify-between">
+              <h2 className="pt-4 text-[22px] font-bold text-[#1e1e1e] sm:pt-16 lg:text-[22px]">
                 Profile Details
               </h2>
 
@@ -352,9 +351,41 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
             </div>
           )}
 
+          {activeTab === 'security' && (
+            <div className="mb-6 flex flex-col gap-3 pr-[8px] sm:flex-row sm:items-start sm:justify-between">
+              <h2 className="pt-0 text-[22px] font-bold text-[#1e1e1e] lg:pt-16 lg:text-[22px]">
+                Security
+              </h2>
+
+              <div className="flex w-full items-center justify-end gap-2 pt-1 sm:w-auto sm:pt-0">
+                <button
+                  type="button"
+                  onClick={handleCancelSecurity}
+                  className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSecurity}
+                  className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
+                >
+                  {secSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div
-            className={`ps-panel-inner pr-0 sm:pr-8 ${activeTab === 'notifications' ? 'max-w-none pr-[8px]' : 'max-w-[700px]'
-              }`}
+            className={`ps-panel-inner ${
+              activeTab === 'notifications'
+                ? 'max-w-none pr-[8px]'
+                : activeTab === 'security'
+                  ? 'max-w-none pr-[8px]'
+                  : activeTab === 'billing'
+                    ? 'max-w-none pr-[4px]'
+                    : 'max-w-[700px] pr-0 sm:pr-8'
+            }`}
           >
             {activeFeedback && (
               <Messages success={activeFeedback.msg} error={activeFeedback.err} />
@@ -386,9 +417,6 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
                 onToggle2FA={(v) =>
                   setSecurityData((p) => ({ ...p, twoFactorEnabled: v }))
                 }
-                onSave={handleSaveSecurity}
-                onCancel={handleCancelSecurity}
-                saving={secSaving}
                 onSendReset={handleSendResetLink}
                 resetSending={resetSending}
                 resetMsg={resetFb.msg}

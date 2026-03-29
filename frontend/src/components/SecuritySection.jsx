@@ -29,28 +29,6 @@ const Toggle = ({ checked, onChange }) => (
   </button>
 );
 
-const PanelHeader = ({ onCancel, onSave, saveLabel = 'Save Changes', saving = false }) => (
-  <div className="ps-panel-header mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-    <h2 className="text-[22px] lg:text-[18px] font-bold text-[#1e1e1e]">Security</h2>
-    <div className="flex shrink-0 items-center justify-end gap-2">
-      <button
-        type="button"
-        onClick={onCancel}
-        className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onClick={onSave}
-        className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
-      >
-        {saving ? 'Saving...' : saveLabel}
-      </button>
-    </div>
-  </div>
-);
-
 const Messages = ({ success, error }) => (
   <>
     {success && <p className="mb-4 text-sm text-green-600">{success}</p>}
@@ -62,22 +40,13 @@ function SecuritySection({
   securityData,
   onChange,
   onToggle2FA,
-  onSave,
-  onCancel,
-  saving,
   onSendReset,
   resetSending,
   resetMsg,
   resetErr,
 }) {
   return (
-    <div>
-      <PanelHeader
-        onCancel={onCancel}
-        onSave={onSave}
-        saving={saving}
-      />
-
+    <div className="flex min-h-[860px] w-full max-w-[700px] flex-col">
       <div className="flex flex-col gap-4">
         <Field label="Password">
           <input
@@ -99,7 +68,7 @@ function SecuritySection({
           />
         </Field>
 
-        <div className="flex items-center justify-end gap-3 pt-1">
+        <div className="flex items-center justify-end gap-3 pt-3">
           <span className="text-sm text-[#4f5250]">
             Enable two-factor authentication
           </span>
@@ -107,12 +76,12 @@ function SecuritySection({
         </div>
       </div>
 
-      <div className="mt-8">
-        <p className="mb-2 text-sm font-bold text-[#1e1e1e]">
+      <div className="mt-10">
+        <p className="mb-2 text-[16px] font-bold text-[#1e1e1e]">
           Forgot Your Password?
         </p>
-        <p className="mb-5 max-w-[610px] text-sm leading-6 text-[#4f5250]">
-          Don't worry, we will help you to reset. Enter your email or phone
+        <p className="mb-5 max-w-[640px] text-sm leading-6 text-[#4f5250]">
+          Don&apos;t worry, we will help you to reset. Enter your email or phone
           number to receive a one-time password reset link.
         </p>
 
@@ -127,7 +96,7 @@ function SecuritySection({
 
         <Messages success={resetMsg} error={resetErr} />
 
-        <div className="mt-4 flex justify-center">
+        <div className="mt-5 flex justify-center">
           <button
             type="button"
             onClick={onSendReset}
@@ -141,16 +110,16 @@ function SecuritySection({
             {resetSending ? 'Sending…' : 'Send Reset Link'}
           </button>
         </div>
-      </div>
 
-      <div className="mt-10 flex justify-center">
-        <button
-          type="button"
-          className="flex items-center gap-2 text-sm font-medium text-[#1e1e1e]"
-        >
-          <FiMail size={22} color="#00808d" />
-          Contact our support
-        </button>
+        <div className="mt-28 flex justify-center">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-[16px] font-medium text-[#1e1e1e]"
+          >
+            <FiMail size={24} color="#00808d" />
+            Contact our support
+          </button>
+        </div>
       </div>
     </div>
   );
