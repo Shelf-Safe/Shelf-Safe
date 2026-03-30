@@ -37,10 +37,10 @@ const INVOICES = [
   { date: 'Paracetamol 500mg', invoice: '#648154', amount: '$25.80', download: 'CSV...' },
 ];
 
-function BillingSection() {
+function BillingSection({ onCancel }) {
   return (
     <div className="w-full">
-      <PanelHeader title="Billing" onCancel={() => {}} onSave={() => {}} />
+     <PanelHeader title="Billing" onCancel={onCancel} onSave={() => {}} />
 
       <p className="mb-3 text-[16px] font-bold text-[#1e1e1e]">Professional Plan</p>
       <div className="mb-7 w-full rounded-2xl border border-[#e6e6e6] bg-white px-4 py-5">
