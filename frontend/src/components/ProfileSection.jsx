@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { updateProfile, requestPasswordReset } from '../services/profileService';
 
 import SettingsSidebar from './SettingsSidebar';
@@ -86,7 +87,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
   const [notifSaving, setNotifSaving] = useState(false);
   const [secSaving, setSecSaving] = useState(false);
   const [resetSending, setResetSending] = useState(false);
-
+  const navigate = useNavigate();
   const [showMobilePanel, setShowMobilePanel] = useState(Boolean(initialTab));
 
   useEffect(() => {
@@ -280,6 +281,11 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
     setResetFb({ msg: '', err: '' });
   };
 
+  const handleGoBackToProfile = () => {
+    clearAllFeedback();
+    navigate('/profile');
+  };
+
   const handleSendResetLink = async () => {
     const contact = securityData.resetContact.trim();
 
@@ -335,7 +341,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
               <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                 <button
                   type="button"
-                  onClick={handleCancelProfile}
+                  onClick={handleGoBackToProfile}
                   className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
                 >
                   Cancel
@@ -360,7 +366,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
               <div className="flex w-full items-center justify-end gap-2 pt-1 sm:w-auto sm:pt-0">
                 <button
                   type="button"
-                  onClick={handleCancelSecurity}
+                  onClick={handleGoBackToProfile}
                   className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
                 >
                   Cancel
@@ -377,15 +383,14 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
           )}
 
           <div
-            className={`ps-panel-inner ${
-              activeTab === 'notifications'
+            className={`ps-panel-inner ${activeTab === 'notifications'
+              ? 'max-w-none pr-[8px]'
+              : activeTab === 'security'
                 ? 'max-w-none pr-[8px]'
-                : activeTab === 'security'
-                  ? 'max-w-none pr-[8px]'
-                  : activeTab === 'billing'
-                    ? 'max-w-none pr-[4px]'
-                    : 'max-w-[700px] pr-0 sm:pr-8'
-            }`}
+                : activeTab === 'billing'
+                  ? 'max-w-none pr-[4px]'
+                  : 'max-w-[700px] pr-0 sm:pr-8'
+              }`}
           >
             {activeFeedback && (
               <Messages success={activeFeedback.msg} error={activeFeedback.err} />
@@ -405,7 +410,7 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
                 onChange={handleNotifChange}
                 onToggle={handleNotifToggle}
                 onSave={handleSaveNotifications}
-                onCancel={handleCancelNotif}
+                onCancel={handleGoBackToProfile}
                 saving={notifSaving}
               />
             )}
@@ -424,7 +429,9 @@ export const ProfileSection = ({ user, onProfileUpdated, initialTab = null }) =>
               />
             )}
 
-            {activeTab === 'billing' && <BillingSection />}
+            {activeTab === 'billing' && (
+              <BillingSection onCancel={handleGoBackToProfile} />
+            )}
           </div>
         </div>
       </div>
