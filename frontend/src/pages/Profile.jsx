@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import { getProfile } from '../services/profileService';
+import { getProfile, updateProfile  } from '../services/profileService';
 
 function IconVerify() {
   return (
@@ -79,7 +79,7 @@ function IconShield() {
 }
 
 export const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -129,19 +129,38 @@ export const Profile = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleAvatarChange = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file.');
-      return;
-    }
+  if (!file.type.startsWith('image/')) {
+    setError('Please select a valid image file.');
+    return;
+  }
 
-    const imageUrl = URL.createObjectURL(file);
-    setPreviewImage(imageUrl);
+  try {
     setError('');
-  };
+
+    const localPreview = URL.createObjectURL(file);
+    setPreviewImage(localPreview);
+
+    const updatedProfile = await updateProfile({ avatarFile: file });
+
+    setProfile((prev) => ({
+      ...prev,
+      avatarUrl: updatedProfile.avatarUrl,
+      recentActivity: updatedProfile.recentActivity || prev?.recentActivity || [],
+    }));
+
+    updateUser(updatedProfile);
+    setPreviewImage(updatedProfile.avatarUrl || '');
+  } catch (err) {
+    setError(err.message || 'Failed to upload profile picture');
+    setPreviewImage('');
+  } finally {
+    e.target.value = '';
+  }
+};
 
   const handleLogout = () => {
     logout();
