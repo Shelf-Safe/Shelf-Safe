@@ -1,12 +1,53 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
 import crypto from 'crypto';
+import multer from 'multer';
+import { put } from '@vercel/blob';
 import { sendEmail } from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Unsupported image type'));
+    }
+  },
+});
+
+function makeBlobPath(prefix, originalName = 'avatar.jpg') {
+  const safeName = String(originalName || 'avatar.jpg').replace(/[^a-zA-Z0-9._-]/g, '-');
+  return `${prefix}/${Date.now()}-${safeName}`;
+}
+
+async function uploadAvatar(file) {
+  if (!file?.buffer) return '';
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+
+  // local/dev fallback if blob token is missing
+  if (!token) {
+    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  }
+
+  const blob = await put(makeBlobPath('avatars', file.originalname), file.buffer, {
+    access: 'public',
+    token,
+    contentType: file.mimetype || 'image/jpeg',
+    addRandomSuffix: false,
+  });
+
+  return blob?.url || '';
+}
 
 router.post('/request-password-reset', async (req, res) => {
   try {
@@ -77,9 +118,6 @@ router.post('/request-password-reset', async (req, res) => {
   }
 });
 
-
-
-
 router.get('/', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -105,7 +143,7 @@ router.get('/', verifyToken, async (req, res) => {
         avatarUrl: user.avatarUrl,
         notifications: user.notifications,
         twoFactorEnabled: user.twoFactorEnabled,
-        recentActivity: user.recentActivity.slice(-10),
+        recentActivity: user.recentActivity?.slice(-10) || [],
       },
     });
   } catch (error) {
@@ -117,10 +155,33 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-
-router.put('/', verifyToken, async (req, res) => {
+router.put('/', verifyToken, upload.single('avatar'), async (req, res) => {
   try {
-    const { name, employeeId, userRole, phone, pharmacyOrganization, notifications, password, twoFactorEnabled } = req.body;
+    const {
+      name,
+      employeeId,
+      userRole,
+      phone,
+      pharmacyOrganization,
+      notifications,
+      password,
+      twoFactorEnabled,
+      avatarUrl,
+    } = req.body;
+
+    let parsedNotifications = notifications;
+    if (typeof notifications === 'string') {
+      try {
+        parsedNotifications = JSON.parse(notifications);
+      } catch {
+        parsedNotifications = undefined;
+      }
+    }
+
+    const parsedTwoFactorEnabled =
+      typeof twoFactorEnabled === 'string'
+        ? twoFactorEnabled === 'true'
+        : twoFactorEnabled;
 
     const updateFields = {};
 
@@ -128,22 +189,28 @@ router.put('/', verifyToken, async (req, res) => {
     if (employeeId !== undefined) updateFields.employeeId = employeeId.trim();
     if (userRole !== undefined) updateFields.userRole = userRole.trim();
     if (phone !== undefined) updateFields.phone = phone.trim();
+
     if (pharmacyOrganization !== undefined) {
       updateFields.pharmacyOrganization = pharmacyOrganization.trim();
     }
 
-    if (notifications !== undefined) {
-      updateFields.notifications = notifications;
+    if (parsedNotifications !== undefined) {
+      updateFields.notifications = parsedNotifications;
     }
 
-    if (twoFactorEnabled !== undefined) {
-      updateFields.twoFactorEnabled = twoFactorEnabled;
+    if (parsedTwoFactorEnabled !== undefined) {
+      updateFields.twoFactorEnabled = parsedTwoFactorEnabled;
     }
 
     if (password !== undefined && password.trim() !== '') {
       updateFields.password = await bcryptjs.hash(password.trim(), 10);
     }
 
+    if (req.file) {
+      updateFields.avatarUrl = await uploadAvatar(req.file);
+    } else if (avatarUrl !== undefined) {
+      updateFields.avatarUrl = String(avatarUrl).trim();
+    }
 
     const activityEntries = [];
     const activityTimestamp = new Date();
@@ -190,27 +257,30 @@ router.put('/', verifyToken, async (req, res) => {
       });
     }
 
-    if (notifications !== undefined) {
+    if (parsedNotifications !== undefined) {
       activityEntries.push({
-        action: notifications?.email
+        action: parsedNotifications?.emailEnabled
           ? 'Enabled email notifications'
           : 'Disabled email notifications',
         timestamp: activityTimestamp,
       });
     }
 
-    if (twoFactorEnabled !== undefined) {
+    if (parsedTwoFactorEnabled !== undefined) {
       activityEntries.push({
-        action: twoFactorEnabled
+        action: parsedTwoFactorEnabled
           ? 'Enabled two-factor authentication'
           : 'Disabled two-factor authentication',
         timestamp: activityTimestamp,
       });
     }
 
-
-
-
+    if (req.file || avatarUrl !== undefined) {
+      activityEntries.push({
+        action: 'Updated profile photo',
+        timestamp: activityTimestamp,
+      });
+    }
 
     const updateOperation = {
       $set: updateFields,
@@ -253,6 +323,7 @@ router.put('/', verifyToken, async (req, res) => {
         avatarUrl: updatedUser.avatarUrl,
         notifications: updatedUser.notifications,
         twoFactorEnabled: updatedUser.twoFactorEnabled,
+        recentActivity: updatedUser.recentActivity?.slice(-10) || [],
       },
     });
   } catch (error) {
@@ -263,7 +334,5 @@ router.put('/', verifyToken, async (req, res) => {
     });
   }
 });
-
-
 
 export default router;

@@ -25,14 +25,42 @@ export const getProfile = async () => {
 export const updateProfile = async (profileUpdates) => {
   const token = localStorage.getItem('token');
 
-  const response = await fetch(`${API_BASE_URL}/profile`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(profileUpdates),
-  });
+  const hasAvatarFile = profileUpdates?.avatarFile instanceof File;
+
+  let response;
+
+  if (hasAvatarFile) {
+    const formData = new FormData();
+
+    Object.entries(profileUpdates).forEach(([key, value]) => {
+      if (key === 'avatarFile') {
+        formData.append('avatar', value);
+      } else if (value !== undefined && value !== null) {
+        if (typeof value === 'object' && !(value instanceof File)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value);
+        }
+      }
+    });
+
+    response = await fetch(`${API_BASE_URL}/profile`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+  } else {
+    response = await fetch(`${API_BASE_URL}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(profileUpdates),
+    });
+  }
 
   const data = await response.json();
 

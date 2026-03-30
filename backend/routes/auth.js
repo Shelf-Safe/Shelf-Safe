@@ -6,6 +6,22 @@ import { generateToken, verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+function buildUserPayload(user) {
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    employeeId: user.employeeId,
+    userRole: user.userRole,
+    pharmacyOrganization: user.pharmacyOrganization,
+    phone: user.phone,
+    avatarUrl: user.avatarUrl,
+    notifications: user.notifications,
+    twoFactorEnabled: user.twoFactorEnabled,
+  };
+}
+
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, confirmPassword } = req.body;
@@ -41,16 +57,12 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: buildUserPayload(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -89,9 +101,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // 2FA CHECK 
     if (user.twoFactorEnabled) {
-
       const otp = String(Math.floor(100000 + Math.random() * 900000));
 
       user.twoFactorCode = otp;
@@ -108,7 +118,7 @@ router.post('/login', async (req, res) => {
           <p>Hi ${user.name},</p>
           <p>Your ShelfSafe verification code is:</p>
           <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${otp}</p>
-         <p>This code will expire in 10 minutes.</p>
+          <p>This code will expire in 10 minutes.</p>
         </div>
         `,
       });
@@ -121,21 +131,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // NORMAL LOGIN 
     const token = generateToken(user);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: buildUserPayload(user),
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -143,7 +146,6 @@ router.post('/login', async (req, res) => {
     });
   }
 });
-
 
 router.post('/verify-2fa', async (req, res) => {
   try {
@@ -187,12 +189,7 @@ router.post('/verify-2fa', async (req, res) => {
       success: true,
       message: 'Two-factor verification successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: buildUserPayload(user),
     });
   } catch (error) {
     return res.status(500).json({
@@ -201,9 +198,6 @@ router.post('/verify-2fa', async (req, res) => {
     });
   }
 });
-
-
-
 
 router.get('/me', verifyToken, async (req, res) => {
   try {
@@ -218,12 +212,7 @@ router.get('/me', verifyToken, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: buildUserPayload(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -236,11 +225,16 @@ router.get('/me', verifyToken, async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
+
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required.',
+      });
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
+
     if (!user) {
       return res.status(200).json({
         success: true,
@@ -288,7 +282,10 @@ router.post('/forgot-password', async (req, res) => {
       message: 'If an account with that email exists, a reset link has been sent.',
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message || 'Server error.' });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error.',
+    });
   }
 });
 
@@ -297,13 +294,24 @@ router.post('/reset-password/:token', async (req, res) => {
     const { password, confirmPassword } = req.body;
 
     if (!password || !confirmPassword) {
-      return res.status(400).json({ success: false, message: 'Both password fields are required.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Both password fields are required.',
+      });
     }
+
     if (password !== confirmPassword) {
-      return res.status(400).json({ success: false, message: 'Passwords do not match.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match.',
+      });
     }
+
     if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters.',
+      });
     }
 
     const hashedToken = crypto
@@ -332,6 +340,7 @@ router.post('/reset-password/:token', async (req, res) => {
       { action: 'Changed password', timestamp: new Date() },
       ...(user.recentActivity || []),
     ].slice(0, 20);
+
     await user.save({ validateBeforeSave: false });
 
     const token = generateToken(user);
@@ -340,12 +349,14 @@ router.post('/reset-password/:token', async (req, res) => {
       success: true,
       message: 'Password reset successfully.',
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: buildUserPayload(user),
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message || 'Server error.' });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error.',
+    });
   }
 });
 
 export default router;
-
